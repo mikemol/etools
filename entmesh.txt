@@ -1,0 +1,143 @@
+The idea behind entmesh: To allow entropy to move from where it's abundant to
+where it's needed within a network of computers.
+
+Terms:
+* Tank: A node where entropy is stored. Examples include the kernel entropy
+  pool, as well as userland buffers.
+* Source: A node where entropy is generated. Examples include the kernel's own
+  attempts at generating entropy, as well as hardware TRNGs, haveged, etc.
+  This is abstracted as a tank which is always full.
+* Peer: A node connected to another node.
+
+Peer relationships:
+* When two nodes are connected to each other, they have a relationship as
+  peers.
+* Each node in a peer relationship may choose whether or not it will send or
+  receive data from its peer. This has a logical basis in that a hardware TRNG
+  cannot receive data, and it has a security basis in that we may not trust
+  the quality of entropy from a peer, even though we may wish to provide it
+  with entropy.
+* Peers may notify each other about their current entropy level. Such
+  notifications carry implicit flow control requests; if a node notifies its
+  peer that it's starving for entropy, it's implicitly requesting that its
+  peer send it entropy.
+
+Tank levels, notifications and responses:
+
++----------+------------+------------+------------+-----------+
+|      THEM|            |            |            |           |
+|          |    GOOD    |     OK     |    LOW     |  CRITICAL |
+|US        |            |            |            |           |
++----------+------------+------------+------------+-----------+
+|          |            | We offer   | We send    | We send   |
+|   GOOD   |    STOP    | They stop  | We offer   | We offer  |
+|          |            |            | They stop  | They stop |
++----------+------------+------------+------------+-----------+
+|          | We stop    |            | We offer   | We send   |
+|    OK    | They offer |    STOP    | They stop  | We offer  |
+|          |            |            |            | They stop |
++----------+------------+------------+------------+-----------+
+|          | We stop    | We stop    |            | We offer  |
+|    LOW   | They send  | They offer |    STOP    | They stop |
+|          | They offer |            |            |           |
++----------+------------+------------+------------+-----------+
+|          | We stop    | We stop    | We stop    |           |
+| CRITICAL | They send  | They send  | They offer |    STOP   |
+|          | They offer | They offer |            |           |
++----------+------------+------------+------------+-----------+
+
+What exactly corresponds to GOOD, OK, LOW or CRITICAL depends on the tank
+abstraction implementation.
+
+All actions described in the table are edge-triggered.
+
+It is an error for a node to transmit the same state twice; if it is already
+known to be in the GOOD state, and it announces again that it is in the GOOD
+state, it is in error, and the peering should be terminated.
+
+Offers are just that; offers. A receiving tank must accept an offer before a
+sending tank may send a continuous stream of data. If a receiving tank changes
+state again, a new offer is issued. Offers should be considered as
+relationship flags; a peer is either offering to send data, or it isn't.
+
+The purpose behind offers is to allow for the case where a node may have many
+peers in GOOD condition, but it itself begins to run LOW. It should tell its
+trusted peers that it is in the LOW state. Its peers should then send it data,
+with an offer for more. Depending on how much the peers send, our node may not
+require any additional data, and so it should not need to accept the offer.
+
+Offers, acceptence, sending and ceasing:
+Offers are implicit; a node is offering data to its peer if and only if their
+tank states indicate it should. Therefore, a node knows whether or not its peer
+is offering simply by knowing its own tank state and the tank state of its peer.
+
+A node MAY send a data request to an offering peer. The offering peer MAY send
+a stream of data back. If the sending node recinds its offer, or if the
+requesting node recinds its request, the sending node SHOULD cease sending.
+
+Example topologies:
+
+K = Kernel entropy pool, abstracted as a tank.
+M = Memory FIFO entropy buffer, abstracted as a tank.
+
+Single-host, no external entropy source:
+K<->M
+* K Trusts M
+* M Trusts K
+
+In this example, some internal abstraction driver describes the kernel entropy
+pool as a tank, monitors its level, handles state announcements and
+pushing/pulling of data. Since the kernel entropy pool only stores a very,
+very small amount of entropy (512 bytes), having a separate M tank can be
+beneficial; it allows us to save off any excess entropy generated that
+wouldn't otherwise have fit in K. When K runs low, entropy is moved from M
+back into K.
+
+Two hosts, equally trusted:
+
+K1 <-> M1 <-> M2 <-> K2
+
+* K1 and M1 are on the same host
+* K1 and M1 trust each other.
+* K2 and M2 are on the same host
+* K2 and M2 trust each other.
+* M1 and M2 trust each other.
+
+In this example, the Linux kernel for host 1 will attempt to fill K1, and the kernel for
+host 2 will likewise fill K2. K1 and M2 will attempt to keep each other
+filled, K2 and M2 will attempt to keep each other filled, and M1 and M2 will
+attempt to keep each other filled.
+
+So, if K2 runs dry, draining M2, then M1 will feed into M2, which will feed
+into K2. If M1 runs dry, K1 will attempt to fill it.
+
+Likewise, if K1 runs dry, draining M1, then M2 will feed into M1, and K2 will
+feed into M2.
+
+In this way, entropy will flow from where it's available to where it's needed.
+
+Two hosts, unequal trust:
+Let's say that in the situation above, host 1 does not trust the quality of
+entropy from host 2, but does want to keep host 2 supplied with entropy.
+(Perhaps host 1 has an HRNG tied into K1)
+
+K1 <-> M1 -> M2 <-> K2
+
+Here, if M1 runs LOW, it will announce its LOW state to K1, which will fill
+it. It will *not* announce its LOW state to M2.
+
+Client/Server entropy cluster:
+
+K1 <-> M1 <--v
+K2 <-> M2 <->M3-,
+                +------->M4<->K4
+                +------->M5<->K5
+                +------->M6<->K6
+                +------->M7<->K7
+                 \------>M8<->K8
+
+Here, you have two hosts, 1 and 2, sharing trust with buffer M3. M4-M8 aren't
+trusted by anyone but their hosts' kernels, and it's M3's job to keep them
+supplied with entropy.
+
+(This is how I see entmesh being useful in VM cluster environments.)
