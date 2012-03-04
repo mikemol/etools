@@ -32,11 +32,11 @@ void close_fdRandom()
 	fclose(fdRandom);
 }
 
-void read_from_buffer()
+int read_from_buffer()
 {
 	// If we don't have any bytes left to read, nullop.
 	if(0 == buff_read_remaining)
-		return;
+		return 0;
 	
 	// Where in the buffer do we read from?
 	// pos_write is the next byte which will be written.
@@ -50,13 +50,14 @@ void read_from_buffer()
 	int brr_w = buff_read_remaining;
 	--buff_read_remaining;
 	++read_out_count;
+	return 1;
 }
 
-void write_to_buffer()
+int write_to_buffer()
 {
 	// If our buffer is full, nullop.
 	if(buff_size == buff_read_remaining)
-		return;
+		return 0;
 
 	// Buffer is wrapping.
 	if(pos_write >= buff_size)
@@ -68,6 +69,7 @@ void write_to_buffer()
 	++buff_read_remaining;
 	++pos_write;
 	++read_in_count;
+	return 1;
 }
 
 int check_ent()
@@ -141,38 +143,37 @@ int main(int argc, char* argv[])
                 int ures = usleep(waittime);
 		if(printperiod_count++ >= printperiod)
 		{
-			fprintf(stderr, "%d bytes in buffer. %llu in, %llu out. %d -- %d\n", buff_read_remaining, (unsigned long long int) read_in_count, (unsigned long long int) read_out_count, ures, waittime);
+			fprintf(stderr, "entcnt(%d), buffer(%d) read(%llu) write(%llu)\n", entcnt, buff_read_remaining, (unsigned long long int) read_in_count, (unsigned long long int) read_out_count);
 			printperiod_count = 0;
 		}
 		entcnt = check_ent();
-		int write_bytes_rmn = 0xffff; // how many bytes we allow ourselves to add to the buffer. 
-		int read_bytes_rmn = 0xffff; // How far we allow ourselves to draw down the buffer in one second.If we're not careful, we'll flood the pool and waste bytes.
 		while	(
 				(
 					((entcnt >= entthresh_high) && (buff_read_remaining != buff_size))
 					|| ((entcnt <= entthresh_low) && (buff_read_remaining != 0))
 				)
-				&& (write_bytes_rmn > 0)
-				&& (read_bytes_rmn > 0)
 			)
 		{
+			int res = 0;
 			if(entcnt >= entthresh_high)
 			{
-				write_to_buffer();
-				write_bytes_rmn--;
+				res = write_to_buffer();
 			}
 			else if(entcnt <= entthresh_low)
 			{
-				read_from_buffer();
-				read_bytes_rmn--;
+				res = read_from_buffer();
 			}
 			else
 			{
 				fprintf(stderr, "BUG: entcnt(%d), etl(%d), eth(%d), brr(%d), bs(%d)\n", entcnt, entthresh_low, entthresh_high, buff_read_remaining, buff_size);
 			}
 			entcnt = check_ent();
+			if(!res)
+				// Ran out of space, don't bother calling read or write.
+				break;
 		}
 	}
 
         return 0;
 }
+

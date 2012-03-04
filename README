@@ -4,4 +4,6 @@ Copyright(c) 2012 Michael Mol <mikemol@gmail.com>, Creative Commons Attribution 
 
 entbuffer - Behaves as an entropy capacitor. When the kernel entropy pool is above one threshold, entropy is pulled from the kernel and stored in an internal buffer. When the kernel entropy pool rises above another threshold, entropy is taken from the internal buffer and written back to the pool.
 
+entropywatch.c -- Polls the kernel, prints the current entropy level.
+
 [1] With occasional contributions from others, noted either in relevant files or in the git history.
