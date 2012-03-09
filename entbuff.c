@@ -81,7 +81,7 @@ size_t write_to_buffer_internal(size_t toWrite, size_t writePos)
 	return fread(entbuff + writePos, toWrite, 1, fdRandom);
 }
 
-int write_to_buffer(int toWrite)
+size_t write_to_buffer(size_t toWrite)
 {
 	// If our buffer is full, nullop.
 	if(buff_size == buff_read_remaining)
@@ -139,8 +139,8 @@ int main(int argc, char* argv[])
         int entcnt = 0;
 	int entthresh_high = 4096 * 1 / 8;
 	int entthresh_low = 4096 * 1 / 16;
-        int waittime = 12500;
-	int printperiod = 1000000 / waittime;
+        int waittime = 1250; // microseconds
+	int printperiod = 1000; // milliseconds, roughly
 
 	entbuff = mmap(NULL, buff_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if(MAP_FAILED == entbuff)
@@ -186,14 +186,15 @@ int main(int argc, char* argv[])
 	fprintf(stderr, "wait time is %d, high threshold is %d, low threshold is %d\n", waittime, entthresh_high, entthresh_low);
         // loop here, calling ioctl(rfd, RNDGETENTCNT) and printing the result
 	entcnt = check_ent();
-	int printperiod_count = 0;
+	size_t slept = 0;
 	while( -1 != entcnt)
 	{
                 int ures = usleep(waittime);
-		if(printperiod_count++ >= printperiod)
+		slept += waittime;
+		if(slept >= (1000 * printperiod))
 		{
 			fprintf(stderr, "entcnt(%d), buffer(%d) read(%llu) write(%llu)\n", entcnt, buff_read_remaining, (unsigned long long int) read_in_count, (unsigned long long int) read_out_count);
-			printperiod_count = 0;
+			slept = 0;
 		}
 		entcnt = check_ent();
 		if ( (entcnt > entthresh_high) || (entcnt < entthresh_low) )
@@ -201,12 +202,12 @@ int main(int argc, char* argv[])
 			if(entcnt > entthresh_high)
 			{
 				// Let's pull some bytes in for later.
-				write_to_buffer(entcnt - entthresh_high);
+				write_to_buffer((entcnt - entthresh_high) / 8);
 			}
 			else if(entcnt < entthresh_low)
 			{
 				// Let's get that back up to the threshold.
-				read_from_buffer(entthresh_low - entcnt);
+				read_from_buffer((entthresh_low - entcnt) / 8);
 			}
 		}
 	}
