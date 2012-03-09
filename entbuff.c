@@ -139,7 +139,7 @@ int main(int argc, char* argv[])
         int entcnt = 0;
 	int entthresh_high = 4096 * 1 / 2;
 	int entthresh_low = 4096 * 1 / 16;
-        int waittime = 1250; // microseconds
+        int waittime = 2500; // microseconds
 	int printperiod = 1000; // milliseconds, roughly
 
 	entbuff = mmap(NULL, buff_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
