@@ -137,7 +137,7 @@ int check_ent()
 int main(int argc, char* argv[])
 {
         int entcnt = 0;
-	int entthresh_high = 4096 * 1 / 8;
+	int entthresh_high = 4096 * 1 / 2;
 	int entthresh_low = 4096 * 1 / 16;
         int waittime = 1250; // microseconds
 	int printperiod = 1000; // milliseconds, roughly
