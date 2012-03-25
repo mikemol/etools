@@ -1,9 +1,9 @@
 A collection of tools developed as I've struggled to deal with entropy starvation in my home network and on my online servers.
 
-Copyright(c) 2012 Michael Mol <mikemol@gmail.com>, Creative Commons Attribution License.
+Copyright(c) 2012 Michael Mol <mikemol@gmail.com>, Creative Commons v3 Attribution License, unported. See COPYING for full license text.
 
 entbuffer - Behaves as an entropy capacitor. When the kernel entropy pool is above one threshold, entropy is pulled from the kernel and stored in an internal buffer. When the kernel entropy pool falls below another threshold, entropy is taken from the internal buffer and written back to the pool.
 
-entropywatch.c -- Polls the kernel, prints the current entropy level.
+entwatch -- Polls the kernel, prints the current entropy level.
 
 [1] With occasional contributions from others, noted either in relevant files or in the git history.
