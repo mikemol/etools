@@ -128,8 +128,7 @@ int check_ent()
         int r;
 	r = ioctl(fileno(fdRandom), RNDGETENTCNT, &entcnt);
 	if(0 > r) {
-		int e = errno;
-                fprintf(stderr, "Error with ioctl call: %s\n", strerror(e));
+                fprintf(stderr, "Error with ioctl call: %s\n", strerror(errno));
 		return -1;
         }
 	return entcnt;
@@ -146,14 +145,12 @@ int main(int argc, char* argv[])
 	entbuff = mmap(NULL, buff_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if(MAP_FAILED == entbuff)
 	{
-		int e = errno;
-                fprintf(stderr, "Error with mmap call: %s\n", strerror(e));
+                fprintf(stderr, "Error with mmap call: %s\n", strerror(errno));
 		return -1;
 	}
 	if(NULL == entbuff)
 	{
-		int e = errno;
-		fprintf(stderr, "mmap returned NULL?!: %s\n", strerror(e));
+		fprintf(stderr, "mmap returned NULL?!: %s\n", strerror(errno));
 		return -1;
 	}
 
@@ -166,8 +163,7 @@ int main(int argc, char* argv[])
 	fdRandom = fopen("/dev/random", "rw");
 	if(0 == fdRandom)
 	{
-		int e = errno;
-                fprintf(stderr, "Error with mmap call: %s\n", strerror(e));
+                fprintf(stderr, "Error with mmap call: %s\n", strerror(errno));
 		return -1;
 	}
 
