@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
         rfd = open("/dev/random", O_RDONLY);
 
         if(-1 == rfd) {
-                fprintf(stderr, "error opening /dev/random\n");
+                fprintf(stderr, "error opening /dev/random: %s\n", strerror(errno));
                 return -1;
         }
 
