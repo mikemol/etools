@@ -146,12 +146,12 @@ int main(int argc, char* argv[])
 	if(MAP_FAILED == entbuff)
 	{
                 fprintf(stderr, "Error with mmap call: %s\n", strerror(errno));
-		return -1;
+		return 1;
 	}
 	if(NULL == entbuff)
 	{
 		fprintf(stderr, "mmap returned NULL?!: %s\n", strerror(errno));
-		return -1;
+		return 1;
 	}
 
 	int at_res = atexit(unmap_ent); // We mapped, so unmap when we're done.
@@ -164,7 +164,7 @@ int main(int argc, char* argv[])
 	if(0 == fdRandom)
 	{
                 fprintf(stderr, "Error with mmap call: %s\n", strerror(errno));
-		return -1;
+		return 1;
 	}
 
 	at_res = atexit(close_fdRandom); // We opened the file, remember to close it.
@@ -177,7 +177,7 @@ int main(int argc, char* argv[])
                 waittime = atoi(argv[1]);
                 if(waittime < 1) {
                         fprintf(stderr, "specified wait time cannot be less than 1\n");
-                        return -1;
+                        return 1;
                 }
         }
 	fprintf(stderr, "wait time is %d, high threshold is %d, low threshold is %d\n", waittime, entthresh_high, entthresh_low);
