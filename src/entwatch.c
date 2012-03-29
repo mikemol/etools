@@ -25,7 +25,7 @@ int main(int argc, char* argv[])
                 waittime = atoi(argv[1]);
                 if(waittime < 1) {
                         fprintf(stderr, "specified wait time cannot be less than 1\n");
-                        return -1;
+                        return 1;
                 }
         }
 
@@ -33,7 +33,7 @@ int main(int argc, char* argv[])
 
         if(-1 == rfd) {
                 fprintf(stderr, "error opening /dev/random: %s\n", strerror(errno));
-                return -1;
+                return 1;
         }
 
         // loop here, calling ioctl(rfd, RNDGETENTCNT) and printing the result
