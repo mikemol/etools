@@ -44,7 +44,7 @@ int main(int argc, char* argv[])
                         fprintf(stderr, "Error with ioctl call: %s\n", strerror(errno));
                         break;
                 }
-                strftime(timebuf, 512, "%F %T", localtime(&now));
+                strftime(timebuf, sizeof(timebuf), "%F %T", localtime(&now));
                 printf("[%s] %d\n", timebuf, entcnt);
                 sleep(waittime);
         } while(looping);
