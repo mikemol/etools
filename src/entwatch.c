@@ -15,11 +15,7 @@ int looping = 1;
 int main(int argc, char* argv[])
 {
         int rfd = 0;
-        int entcnt = 0;
-        int r;
         int waittime = 30;
-        char timebuf[512];
-        time_t now;
 
         if(argc == 2) {
                 waittime = atoi(argv[1]);
@@ -38,6 +34,11 @@ int main(int argc, char* argv[])
 
         // loop here, calling ioctl(rfd, RNDGETENTCNT) and printing the result
         do {
+                int entcnt = 0;
+                char timebuf[512];
+                time_t now;
+                int r;
+
                 now = time(NULL);
                 r = ioctl(rfd, RNDGETENTCNT, &entcnt);
                 if(0 > r) {
