@@ -20,7 +20,6 @@ int main(int argc, char* argv[])
         int waittime = 30;
         char timebuf[512];
         time_t now;
-        struct tm *tmp;
 
         if(argc == 2) {
                 waittime = atoi(argv[1]);
@@ -42,12 +41,10 @@ int main(int argc, char* argv[])
                 now = time(NULL);
                 r = ioctl(rfd, RNDGETENTCNT, &entcnt);
                 if(0 > r) {
-                        int e = errno;
-                        fprintf(stderr, "Error with ioctl call: %s\n", strerror(e));
+                        fprintf(stderr, "Error with ioctl call: %s\n", strerror(errno));
                         break;
                 }
-                tmp = localtime(&now);
-                strftime(timebuf, 512, "%F %T", tmp);
+                strftime(timebuf, 512, "%F %T", localtime(&now));
                 printf("[%s] %d\n", timebuf, entcnt);
                 sleep(waittime);
         } while(looping);
