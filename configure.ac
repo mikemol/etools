@@ -1,4 +1,4 @@
-AC_PREREQ([2.68])
+AC_PREREQ([2.67])
 AC_INIT([enttools], [1.0], [mikemol@gmail.com])
 AM_INIT_AUTOMAKE([1.11 silent-rules foreign subdir-objects])
 AC_CONFIG_SRCDIR([src/entwatch.c])
