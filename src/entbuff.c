@@ -277,6 +277,9 @@ int main(int argc, char* argv[])
 		return 1;
 	}
 
+	// Turn off buffering for writes to fdRandom.
+	setbuf(fdRandom, NULL);
+
 	at_res = atexit(close_fdRandom); // We opened the file, remember to close it.
 	if(0 != at_res)
 	{
