@@ -8,6 +8,7 @@
 #include <errno.h>
 #include <stdlib.h>
 #include <sys/mman.h>
+#include <getopt.h>
 
 #include <linux/random.h>
 
@@ -134,14 +135,123 @@ int check_ent()
 	return entcnt;
 }
 
+void print_usage(int argc, char* argv[])
+{
+	const char usage[] =
+		"Usage: %s [OPTION]\n"
+		"Acts as an entropy reservoir tied into the Linux kernel's entropy pool.\n"
+		"\n"
+		"Mandatory arguments for long options are mandatory for short options, too.\n"
+		"\t-i, --high-thresh=BITS\t\tNumber of bits of entropy the kernel pool must contain before the reservoir is fed.\n"
+		"\t-l, --low-thresh=BITS\t\tMinimum allowed level of entropy in the kernel pool before bits from the reservoir are fed into it.\n"
+		"\t-w, --wait=MICROSECONDS\t\tHow long to wait between polls of the kernel entropy level.\n"
+		"\t-r, --rand-path=PATH\t\tPath to random device. (Typically /dev/random)\n"
+		"\t-p, --print-period=MILLISECONDS\tHow often to print an update on operational information.\n";
+
+	fprintf(stderr, usage, argv[0]);
+}
+
 int main(int argc, char* argv[])
 {
-        int entcnt = 0;
-	int entthresh_high = 4096 * 1 / 2;
-	int entthresh_low = 4096 * 1 / 16;
-        int waittime = 2500; // microseconds
-	int printperiod = 1000; // milliseconds, roughly
+	// Knobs, tunables and argument processing.
+	int entthresh_high = 4096 * 1 / 2; // -i --high-thresh
+	int entthresh_low = 4096 * 1 / 16; // -l --low-thresh
+        int waittime = 2500; // microseconds // -w --wait
+	int printperiod = 1000; // milliseconds, roughly // -p --print-period
+	char* rand_path = "/dev/random"; // -r --rand-path
 
+	{
+		// Use temporaries for argument input.
+		int e_h = entthresh_high;
+		int e_l = entthresh_low;
+		int wt = waittime;
+		int pp = printperiod;
+		int rp = rand_path;
+
+		const char shortopts[] = "i:l:w:p:r:h";
+		static const struct option longopts[] = {
+			{ "high-thresh", required_argument, NULL, 'i' },
+			{ "low-thresh", required_argument, NULL, 'l' },
+			{ "wait", required_argument, NULL, 'w'},
+			{ "print-period", required_argument, NULL, 'p'},
+			{ "rand-path", required_argument, NULL, 'r'},
+			{ "help", no_argument, NULL, 'h'},
+			{ NULL, NULL, NULL, NULL }
+		};
+
+		int indexptr = 0;
+		int val = getopt_long( argc, argv, shortopts, longopts, &indexptr);
+		while( -1 != val)
+		{
+			switch(val)
+			{
+			case 'i':
+				e_h = atoi(optarg);
+				break;
+			case 'l':
+				e_l = atoi(optarg);
+				break;
+			case 'w':
+				wt = atoi(optarg);
+				break;
+			case 'p':
+				pp = atoi(optarg);
+				break;
+			case 'r':
+				rp = optarg;
+				break;
+			case 'h':
+				print_usage(argc, argv);
+				return 0;
+			default:
+				print_usage(argc, argv);
+				return 1;
+			}
+			val = getopt_long( argc, argv, shortopts, longopts, &indexptr);
+		}
+		
+		// Validate input.
+		// First, high-thresh must be greater than low-thresh.
+		if(e_l >= e_h)
+		{
+                	fprintf(stderr, "Error: high threshold(%i) must be greater than low threshold(%i).\n", e_h, e_l);
+			return 1;
+		}
+
+		// Second, all values must be greater than 0.
+		if(e_h <= 0)
+		{
+                	fprintf(stderr, "Error: high threshold must be greater than 0.\n");
+			return 1;
+		}
+
+		if(e_l <= 0)
+		{
+                	fprintf(stderr, "Error: low threshold must be greater than 0.\n");
+			return 1;
+		}
+
+		if(wt <= 0)
+		{
+                	fprintf(stderr, "Error: wait time must be greater than 0.\n");
+			return 1;
+		}
+
+		if(pp <= 0)
+		{
+                	fprintf(stderr, "Error: print period must be greater than 0.\n");
+			return 1;
+		}
+
+		// Finally, assign our temporaries back.
+		entthresh_high = e_h;
+		entthresh_low = e_l;
+		waittime = wt;
+		printperiod = pp;
+	}
+
+	// Now start setting up our operations pieces.
+	
 	entbuff = mmap(NULL, buff_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
 	if(MAP_FAILED == entbuff)
 	{
@@ -160,10 +270,10 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "Warning: failed to register unmap_ent with atexit()");
 	}
 
-	fdRandom = fopen("/dev/random", "rw");
+	fdRandom = fopen(rand_path, "rw");
 	if(0 == fdRandom)
 	{
-                fprintf(stderr, "Error with mmap call: %s\n", strerror(errno));
+                fprintf(stderr, "Unable to open %s for r/w: %s\n", rand_path, strerror(errno));
 		return 1;
 	}
 
@@ -173,16 +283,9 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "Warning: failed to register close_fdRandom with atexit()");
 	}
 
-        if(argc == 2) {
-                waittime = atoi(argv[1]);
-                if(waittime < 1) {
-                        fprintf(stderr, "specified wait time cannot be less than 1\n");
-                        return 1;
-                }
-        }
-	fprintf(stderr, "wait time is %d, high threshold is %d, low threshold is %d\n", waittime, entthresh_high, entthresh_low);
+
         // loop here, calling ioctl(rfd, RNDGETENTCNT) and printing the result
-	entcnt = check_ent();
+        int entcnt = check_ent();
 	size_t slept = 0;
 	while( -1 != entcnt)
 	{
