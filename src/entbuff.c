@@ -146,7 +146,8 @@ void print_usage(int argc, char* argv[])
 		"\t-l, --low-thresh=BITS\t\tMinimum allowed level of entropy in the kernel pool before bits from the reservoir are fed into it.\n"
 		"\t-w, --wait=MICROSECONDS\t\tHow long to wait between polls of the kernel entropy level.\n"
 		"\t-r, --rand-path=PATH\t\tPath to random device. (Typically /dev/random)\n"
-		"\t-p, --print-period=MILLISECONDS\tHow often to print an update on operational information.\n";
+		"\t-p, --print-period=MILLISECONDS\tHow often to print an update on operational information.\n"
+		"\t-h, --help\t\tThis help message\n";
 
 	fprintf(stderr, usage, argv[0]);
 }
@@ -248,6 +249,7 @@ int main(int argc, char* argv[])
 		entthresh_low = e_l;
 		waittime = wt;
 		printperiod = pp;
+		rand_path = rp;
 	}
 
 	// Now start setting up our operations pieces.
