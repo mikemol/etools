@@ -332,12 +332,14 @@ int main(int argc, char* argv[])
 		entcnt = check_ent();
 		if ( (entcnt > entthresh_high) || (entcnt < entthresh_low) )
 		{
-			if(entcnt > entthresh_high)
+			// entcnt and entthresh_* are in bits, but we can only work in multiples
+			// of 8 bits.
+			if(((entcnt - entthresh_high) / 8) > 0)
 			{
 				// Let's pull some bytes in for later.
 				write_to_buffer((entcnt - entthresh_high) / 8);
 			}
-			else if(entcnt < entthresh_low)
+			else if(((entthresh_low - entcnt) / 8) > 0)
 			{
 				// Let's get that back up to the threshold.
 				read_from_buffer((entthresh_low - entcnt) / 8);
