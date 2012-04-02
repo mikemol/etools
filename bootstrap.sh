@@ -1,2 +1,2 @@
 #!/bin/sh
-autoregen --install
+autoreconf --install
