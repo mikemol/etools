@@ -9,6 +9,7 @@
 #include <stdlib.h>
 #include <sys/mman.h>
 #include <getopt.h>
+#include <stdbool.h>
 
 #include <linux/random.h>
 
@@ -42,11 +43,19 @@ size_t read_from_buffer_internal(size_t toRead, size_t readPos)
 	return fwrite(entbuff + readPos, toRead, 1, fdRandom);
 }
 
+bool g_log_reads = false;
 size_t read_from_buffer(size_t toRead)
 {
+	if(g_log_reads)
+		fprintf(stderr, "Reading %zu bytes from buffer to random device\n", toRead);
+
 	// If we don't have any bytes left to read, nullop.
 	if(0 == buff_read_remaining)
+	{
+		if(g_log_reads)
+			fprintf(stderr, "Buffer empty.\n");
 		return 0;
+	}
 	
 	// Where in the buffer do we read from?
 	// pos_write is the next byte which will be written.
@@ -83,11 +92,18 @@ size_t write_to_buffer_internal(size_t toWrite, size_t writePos)
 	return fread(entbuff + writePos, toWrite, 1, fdRandom);
 }
 
+bool g_log_writes = false;
 size_t write_to_buffer(size_t toWrite)
 {
+	if(g_log_writes)
+		fprintf(stderr, "Writing %zu bytes from random device to buffer\n", toWrite);
 	// If our buffer is full, nullop.
 	if(buff_size == buff_read_remaining)
+	{
+		if(g_log_writes)
+			fprintf(stderr, "Buffer full.\n");
 		return 0;
+	}
 
 	// If we don't have enough space in the buffer to add as many bytes as
 	// we're asked, reduce how many bytes we'll add.
@@ -147,6 +163,8 @@ void print_usage(int argc, char* argv[])
 		"\t-w, --wait=MICROSECONDS\t\tHow long to wait between polls of the kernel entropy level.\n"
 		"\t-r, --rand-path=PATH\t\tPath to random device. (Typically /dev/random)\n"
 		"\t-p, --print-period=MILLISECONDS\tHow often to print an update on operational information.\n"
+		"\t-R, --log-reads\t\tPrint diagnostic information when entropy is read by us from the random device.\n"
+		"\t-W, --log-writes\t\tPrint diagnostic information when entropy is written to the random device.\n"
 		"\t-h, --help\t\tThis help message\n";
 
 	fprintf(stderr, usage, argv[0]);
@@ -169,15 +187,17 @@ int main(int argc, char* argv[])
 		int pp = printperiod;
 		char* rp = rand_path;
 
-		const char shortopts[] = "i:l:w:p:r:h";
+		const char shortopts[] = "i:l:w:p:r:hRW";
 		static const struct option longopts[] = {
 			{ "high-thresh", required_argument, NULL, 'i' },
 			{ "low-thresh", required_argument, NULL, 'l' },
 			{ "wait", required_argument, NULL, 'w'},
 			{ "print-period", required_argument, NULL, 'p'},
 			{ "rand-path", required_argument, NULL, 'r'},
+			{ "log-reads", no_argument, NULL, 'R'},
+			{ "log-writes", no_argument, NULL, 'W'},
 			{ "help", no_argument, NULL, 'h'},
-			{ NULL, NULL, NULL, NULL }
+			{ NULL, 0, NULL, 0 }
 		};
 
 		int indexptr = 0;
@@ -200,6 +220,14 @@ int main(int argc, char* argv[])
 				break;
 			case 'r':
 				rp = optarg;
+				break;
+			case 'R':
+				// yes, I realize the internal names are confusing.
+				g_log_writes = true;
+				break;
+			case 'W':
+				// yes, I realize the internal names are confusing.
+				g_log_reads = true;
 				break;
 			case 'h':
 				print_usage(argc, argv);
