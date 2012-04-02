@@ -2,7 +2,7 @@ A collection of tools developed as I've struggled to deal with entropy starvatio
 
 Copyright(c) 2012 Michael Mol <mikemol@gmail.com>, Creative Commons v3 Attribution License, unported. See COPYING for full license text.
 
-NOTE: Before the steps under 'INSTALL', run 'bootstrap.sh'.
+NOTE: Before the steps under 'INSTALL', run 'bootstrap.sh'. You will need to have the automake and autoconf packages installed.
 
 entbuff - Behaves as an entropy capacitor. When the kernel entropy pool is above one threshold, entropy is pulled from the kernel and stored in an internal buffer. When the kernel entropy pool falls below another threshold, entropy is taken from the internal buffer and written back to the pool.
 
