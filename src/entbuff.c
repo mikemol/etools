@@ -167,7 +167,7 @@ int main(int argc, char* argv[])
 		int e_l = entthresh_low;
 		int wt = waittime;
 		int pp = printperiod;
-		int rp = rand_path;
+		char* rp = rand_path;
 
 		const char shortopts[] = "i:l:w:p:r:h";
 		static const struct option longopts[] = {
