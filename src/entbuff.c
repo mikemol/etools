@@ -40,7 +40,7 @@ size_t read_from_buffer_internal(size_t toRead, size_t readPos)
 	// We let the caller handle concerns about how many bytes we can read,
 	// and where we can read from.	
 
-	return fwrite(entbuff + readPos, toRead, 1, fdRandom);
+	return fwrite(entbuff + readPos, 1, toRead, fdRandom);
 }
 
 bool g_log_reads = false;
@@ -64,13 +64,23 @@ size_t read_from_buffer(size_t toRead)
 
 	// Did our starting position wrap?
 	if(buff_read_pos < 0)
+	{
+		if(g_log_reads)
+			fprintf(stderr, "Buffer wrapped.\n");
+
 		// Buffer wrapped.
 		buff_read_pos += buff_size;
+	}
+
+	if(g_log_reads)
+		fprintf(stderr, "buff_read_pos(%zu)\n", buff_read_pos);
 
 	// Now, we may need to do one or two operations, depending on if our
 	// read range goes over the buffer wrap.
 	size_t first_read = (toRead < (buff_size - buff_read_pos)) ? toRead : (buff_size - buff_read_pos);
 	size_t bytes_read = read_from_buffer_internal(first_read, buff_read_pos);
+	if(g_log_reads)
+		fprintf(stderr, "first_read(%zu), bytes_read(%zu)\n", first_read, bytes_read);
 	toRead -= bytes_read;
 	buff_read_remaining -= bytes_read;
 	read_out_count += bytes_read;
@@ -78,6 +88,7 @@ size_t read_from_buffer(size_t toRead)
 	if(( toRead > 0) && (buff_read_remaining > 0))
 	{
 		size_t bytes_read_second = read_from_buffer_internal(toRead, buff_read_pos);
+		fprintf(stderr, "toRead(%zu), bytes_read_second(%zu)\n", toRead, bytes_read_second);
 		buff_read_remaining -= bytes_read_second;
 		read_out_count += bytes_read_second;
 		bytes_read += bytes_read_second;
@@ -89,7 +100,7 @@ size_t read_from_buffer(size_t toRead)
 size_t write_to_buffer_internal(size_t toWrite, size_t writePos)
 {
 	// Caller can worry about buffer bounds
-	return fread(entbuff + writePos, toWrite, 1, fdRandom);
+	return fread(entbuff + writePos, 1, toWrite, fdRandom);
 }
 
 bool g_log_writes = false;
@@ -108,20 +119,33 @@ size_t write_to_buffer(size_t toWrite)
 	// If we don't have enough space in the buffer to add as many bytes as
 	// we're asked, reduce how many bytes we'll add.
 	toWrite = toWrite < (buff_size - buff_read_remaining) ? toWrite : (buff_size - buff_read_remaining);
+	if(g_log_writes)
+		fprintf(stderr, "Calculated toWrite(%zu)\n", toWrite);
 	
 
 	// If we don't have any bytes left to work with, drop out.
 	if(toWrite == 0)
+	{
+		fprintf(stderr, "Buffer empty\n");
 		return 0;
+	}
 
 	// Buffer is wrapping.
 	if(pos_write >= buff_size)
+	{
+		if(g_log_writes)
+			fprintf(stderr, "Buffer wrapped\n");
 		pos_write -= buff_size;
+	}
 
 	// Now we need to do one or two operations, depending on if our
 	// write range goes over the buffer wrap
 	size_t first_write = (toWrite <= (buff_size - pos_write)) ? toWrite : (buff_size - pos_write);
 	size_t bytes_written = write_to_buffer_internal(toWrite, pos_write);
+
+	if(g_log_writes)
+		fprintf(stderr, "first_write(%zu), bytes_written(%zu)\n", first_write, bytes_written);
+
 	toWrite -= bytes_written;
 	buff_read_remaining += bytes_written;
 	pos_write += bytes_written;
@@ -130,6 +154,7 @@ size_t write_to_buffer(size_t toWrite)
 	if((toWrite > 0 && buff_size) > (buff_read_remaining))
 	{
 		size_t bytes_written_second = write_to_buffer_internal(toWrite, pos_write);
+		fprintf(stderr, "toWrite(%zu), bytes_written_second(%zu)\n", toWrite, bytes_written_second);
 		buff_read_remaining += bytes_written_second;
 		pos_write += bytes_written_second;
 		read_in_count += bytes_written_second;
