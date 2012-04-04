@@ -33,6 +33,18 @@ void close_fdRandom()
 	fclose(fdRandom);
 }
 
+int check_ent()
+{
+	int entcnt;
+        int r;
+	r = ioctl(fileno(fdRandom), RNDGETENTCNT, &entcnt);
+	if(0 > r) {
+                fprintf(stderr, "Error with ioctl call: %s\n", strerror(errno));
+		return -1;
+        }
+	return entcnt;
+}
+
 size_t get_read_remaining()
 {
 	int remaining = buff_write_pos - buff_read_pos;
@@ -58,6 +70,11 @@ size_t buffer_to_rand_internal(const size_t to_transfer)
 	{
 		if(buff_read_pos == buff_size)
 		{
+			if(g_log_buffer_to_rand)
+			{
+				fprintf(stderr, "-W: buffer_to_rand_internal detected buffer wrap. to_transfer(%zu)\n", to_transfer);
+				fprintf(stderr, "-W:entcnt(%d), buffer(%zu)\n", check_ent(), get_read_remaining());
+			}
 			// Buffer wrapped.
 			buff_read_pos = 0;
 		}
@@ -75,11 +92,27 @@ size_t buffer_to_rand_internal(const size_t to_transfer)
 	}
 
 	size_t written = fwrite(entbuff + buff_read_pos, 1, to_transfer, fdRandom);
+
+	if(0 == written)
+	{
+		if(ferror(fdRandom))
+		{
+			perror("Error writing to random device");
+			abort();
+		}
+	}
+
 	if(g_log_buffer_to_rand)
 	{
-		fprintf(stderr, "Write. written(%zu) = buff_read_pos(%d), to_transfer(%zu)\n", written, buff_read_pos, to_transfer);
+		fprintf(stderr, "-W: Write. written(%zu) = buff_read_pos(%d), to_transfer(%zu)\n", written, buff_read_pos, to_transfer);
 	}
+
 	buff_read_pos += written;
+	if(g_log_buffer_to_rand)
+	{
+		fprintf(stderr,"-W: New buff_read_pos(%d)\n", buff_read_pos);
+	}
+
 	if(buff_read_pos > buff_size)
 	{
 		fprintf(stderr, "Internal error: READ past end of buffer!\n");
@@ -90,16 +123,14 @@ size_t buffer_to_rand_internal(const size_t to_transfer)
 
 size_t buffer_to_rand(const size_t to_transfer)
 {
-	if(g_log_buffer_to_rand)
-		fprintf(stderr, "%zu bytes buffer -> random device\n", to_transfer);
-
 	// If we don't have any bytes left to read, nullop.
 	if(buff_write_pos == buff_read_pos)
 	{
-		if(g_log_buffer_to_rand)
-			fprintf(stderr, "Buffer empty.\n");
 		return 0;
 	}
+
+	if(g_log_buffer_to_rand)
+		fprintf(stderr, "-W: %zu bytes buffer -> random device\n", to_transfer);
 
 	// First, let's cap our read to however many bytes we have in the buffer.
 	const size_t first_read_remaining = get_read_remaining();
@@ -113,7 +144,7 @@ size_t buffer_to_rand(const size_t to_transfer)
 
 	if(g_log_buffer_to_rand)
 	{
-		fprintf(stderr, "First read: frr(%zu), cr(%zu), dte(%zu), frq(%zu)\n", first_read_remaining, capped_read, distance_to_end, first_read_qty);
+		fprintf(stderr, "-W: frr(%zu), cr(%zu), dte(%zu), frq(%zu)\n", first_read_remaining, capped_read, distance_to_end, first_read_qty);
 	}
 	const size_t first_bytes_read = buffer_to_rand_internal(first_read_qty);
 
@@ -128,7 +159,7 @@ size_t buffer_to_rand(const size_t to_transfer)
 
 	if(g_log_buffer_to_rand)
 	{
-		fprintf(stderr, "Second read: srq(%zu)\n", second_read_qty);
+		fprintf(stderr, "-W: srq(%zu)\n", second_read_qty);
 	}
 	const size_t second_bytes_read = buffer_to_rand_internal(second_read_qty);
 	
@@ -143,6 +174,10 @@ size_t rand_to_buffer_internal(size_t to_transfer)
 		if(buff_write_pos == buff_size)
 		{
 			// Buffer wrapped.
+			if(g_log_rand_to_buffer)
+			{
+				fprintf(stderr, "-R: rand_to_buffer_internal detected buffer wrap. to_transfer(%zu)\n", to_transfer);
+			}
 			buff_write_pos = 0;
 		}
 		else
@@ -157,15 +192,18 @@ size_t rand_to_buffer_internal(size_t to_transfer)
 		fprintf(stderr, "Logic error: Would write past end of buffer!\n");
 		abort();
 	}
+
 	size_t bytes_written = fread(entbuff + buff_write_pos, 1, to_transfer, fdRandom);
 	if(g_log_buffer_to_rand)
 	{
-		fprintf(stderr, "Write. written(%zu) = buff_write_pos(%d), to_transfer(%zu)\n", bytes_written, buff_write_pos, to_transfer);
+		fprintf(stderr, "-R: Write. rtb. written(%zu) = buff_write_pos(%d), to_transfer(%zu)\n", bytes_written, buff_write_pos, to_transfer);
 	}
+
 	buff_write_pos += bytes_written;
 	if(buff_write_pos > buff_size)
 	{
 		fprintf(stderr, "Logic error: WROTE past end of buffer!\n");
+		abort();
 	}
 
 	return bytes_written;
@@ -173,15 +211,15 @@ size_t rand_to_buffer_internal(size_t to_transfer)
 
 size_t rand_to_buffer(size_t to_transfer)
 {
-	if(g_log_rand_to_buffer)
-		fprintf(stderr, "%zu bytes random device -> buffer\n", to_transfer);
-
 	// If our buffer is full, nullop.
 	if(get_read_remaining() == buff_size)
 	{
-		if(g_log_rand_to_buffer)
-			fprintf(stderr, "Buffer full.\n");
 		return 0;
+	}
+
+	if(g_log_rand_to_buffer)
+	{
+		fprintf(stderr, "-R: %zu bytes random device -> buffer\n", to_transfer);
 	}
 
 	// First, let's cap our write to however many bytes we can still fit in the buffer.
@@ -196,7 +234,7 @@ size_t rand_to_buffer(size_t to_transfer)
 
 	if(g_log_rand_to_buffer)
 	{
-		fprintf(stderr, "bs(%d), grr(%zu), fwr(%zu), cw(%zu), dte(%zu), fwq(%zu), pw(%d)\n", buff_size, get_read_remaining(), first_write_remaining, capped_write, distance_to_end, first_write_qty, buff_write_pos);
+		fprintf(stderr, "-R: bs(%d), grr(%zu), fwr(%zu), cw(%zu), dte(%zu), fwq(%zu), pw(%d)\n", buff_size, get_read_remaining(), first_write_remaining, capped_write, distance_to_end, first_write_qty, buff_write_pos);
 	}
 
 	const size_t first_bytes_written = rand_to_buffer_internal(first_write_qty);
@@ -214,17 +252,6 @@ size_t rand_to_buffer(size_t to_transfer)
 	return second_bytes_written;
 }
 
-int check_ent()
-{
-	int entcnt;
-        int r;
-	r = ioctl(fileno(fdRandom), RNDGETENTCNT, &entcnt);
-	if(0 > r) {
-                fprintf(stderr, "Error with ioctl call: %s\n", strerror(errno));
-		return -1;
-        }
-	return entcnt;
-}
 
 void print_usage(int argc, char* argv[])
 {
@@ -394,7 +421,7 @@ int main(int argc, char* argv[])
 	}
 
 	// Turn off buffering for writes to fdRandom.
-	setbuf(fdRandom, NULL);
+//	setbuf(fdRandom, NULL);
 
 	at_res = atexit(close_fdRandom); // We opened the file, remember to close it.
 	if(0 != at_res)
