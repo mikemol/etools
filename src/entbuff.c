@@ -16,10 +16,8 @@
 int looping = 1;
 
 int pos_write = 0;
-int buff_read_remaining = 0; // This many bytes left in the buffer
+int pos_read = 0;
 int buff_size = 8388608;
-size_t read_in_count = 0;
-size_t read_out_count = 0;
 char* entbuff = 0;
 
 void unmap_ent()
@@ -35,133 +33,185 @@ void close_fdRandom()
 	fclose(fdRandom);
 }
 
-size_t read_from_buffer_internal(size_t toRead, size_t readPos)
+size_t get_read_remaining()
 {
-	// We let the caller handle concerns about how many bytes we can read,
-	// and where we can read from.	
+	int remaining = pos_write - pos_read;
 
-	return fwrite(entbuff + readPos, 1, toRead, fdRandom);
+	if(remaining >= 0)
+		return remaining;
+
+	// Buffer is probably wrapping.
+	remaining += buff_size;
+
+	if(remaining >= 0)
+		return remaining;
+
+	// Logic error! There's no valid case where this should happen.
+	fprintf(stderr, "Internal error in buffer memory management!\n");
+	abort();
 }
 
 bool g_log_reads = false;
-size_t read_from_buffer(size_t toRead)
+size_t read_from_buffer_internal(const size_t toRead)
+{
+	if(pos_read >= buff_size)
+	{
+		if(pos_read == buff_size)
+		{
+			// Buffer wrapped.
+			pos_read = 0;
+		}
+		else
+		{
+			fprintf(stderr, "Logic error: read pos exceeded end of buffer!\n");
+			abort();
+		}
+	}
+
+	if((pos_read + toRead) > buff_size)
+	{
+		fprintf(stderr, "Internal error: Would read past end of buffer!\n");
+		abort();
+	}
+
+	size_t written = fwrite(entbuff + pos_read, 1, toRead, fdRandom);
+	if(g_log_reads)
+	{
+		fprintf(stderr, "Read. written(%zu) = pos_read(%d), toRead(%zu)\n", written, pos_read, toRead);
+	}
+	pos_read += written;
+	if(pos_read > buff_size)
+	{
+		fprintf(stderr, "Internal error: READ past end of buffer!\n");
+		abort();
+	}
+	return written;
+}
+
+size_t read_from_buffer(const size_t toRead)
 {
 	if(g_log_reads)
-		fprintf(stderr, "Reading %zu bytes from buffer to random device\n", toRead);
+		fprintf(stderr, "%zu bytes buffer -> random device\n", toRead);
 
 	// If we don't have any bytes left to read, nullop.
-	if(0 == buff_read_remaining)
+	if(pos_write == pos_read)
 	{
 		if(g_log_reads)
 			fprintf(stderr, "Buffer empty.\n");
 		return 0;
 	}
+
+	// First, let's cap our read to however many bytes we have in the buffer.
+	const size_t first_read_remaining = get_read_remaining();
+	const size_t capped_read = toRead > first_read_remaining  ? first_read_remaining : toRead;
+	const size_t distance_to_end = buff_size - pos_read;
+
+	// First read: From here up to the edge of our buffer, or until we've
+	// satisfied our read quantity, whichever comes first.
 	
-	// Where in the buffer do we read from?
-	// pos_write is the next byte which will be written.
-	// So pos_write - 1 will be the last valid written byte.
-	size_t buff_read_pos = (pos_write - 1) - buff_read_remaining;
-
-	// Did our starting position wrap?
-	if(buff_read_pos < 0)
-	{
-		if(g_log_reads)
-			fprintf(stderr, "Buffer wrapped.\n");
-
-		// Buffer wrapped.
-		buff_read_pos += buff_size;
-	}
+	const size_t first_read_qty = capped_read > distance_to_end ? distance_to_end : capped_read;
 
 	if(g_log_reads)
-		fprintf(stderr, "buff_read_pos(%zu)\n", buff_read_pos);
+	{
+		fprintf(stderr, "First read: frr(%zu), cr(%zu), dte(%zu), frq(%zu)\n", first_read_remaining, capped_read, distance_to_end, first_read_qty);
+	}
+	const size_t first_bytes_read = read_from_buffer_internal(first_read_qty);
 
 	// Now, we may need to do one or two operations, depending on if our
 	// read range goes over the buffer wrap.
-	size_t first_read = (toRead < (buff_size - buff_read_pos)) ? toRead : (buff_size - buff_read_pos);
-	size_t bytes_read = read_from_buffer_internal(first_read, buff_read_pos);
+	// All done here?
+	if(first_read_qty == capped_read)
+		return first_bytes_read;
+
+	// Not quite; our buffer just wrapped, so we get to go again.
+	const size_t second_read_qty = capped_read - first_read_qty;
+
 	if(g_log_reads)
-		fprintf(stderr, "first_read(%zu), bytes_read(%zu)\n", first_read, bytes_read);
-	toRead -= bytes_read;
-	buff_read_remaining -= bytes_read;
-	read_out_count += bytes_read;
-
-	if(( toRead > 0) && (buff_read_remaining > 0))
 	{
-		size_t bytes_read_second = read_from_buffer_internal(toRead, buff_read_pos);
-		fprintf(stderr, "toRead(%zu), bytes_read_second(%zu)\n", toRead, bytes_read_second);
-		buff_read_remaining -= bytes_read_second;
-		read_out_count += bytes_read_second;
-		bytes_read += bytes_read_second;
+		fprintf(stderr, "Second read: srq(%zu)\n", second_read_qty);
 	}
+	const size_t second_bytes_read = read_from_buffer_internal(second_read_qty);
 	
-	return bytes_read;
-}
-
-size_t write_to_buffer_internal(size_t toWrite, size_t writePos)
-{
-	// Caller can worry about buffer bounds
-	return fread(entbuff + writePos, 1, toWrite, fdRandom);
+	return second_bytes_read;
 }
 
 bool g_log_writes = false;
+size_t write_to_buffer_internal(size_t toWrite)
+{
+	if(pos_write >= buff_size)
+	{
+		if(pos_write == buff_size)
+		{
+			// Buffer wrapped.
+			pos_write = 0;
+		}
+		else
+		{
+			fprintf(stderr, "Logic error: write pos exceeded end of buffer!\n");
+			abort();
+		}
+	}
+	
+	if((pos_write + toWrite) > buff_size)
+	{
+		fprintf(stderr, "Logic error: Would write past end of buffer!\n");
+		abort();
+	}
+	size_t bytes_written = fread(entbuff + pos_write, 1, toWrite, fdRandom);
+	if(g_log_reads)
+	{
+		fprintf(stderr, "Write. written(%zu) = pos_write(%d), toWrite(%zu)\n", bytes_written, pos_write, toWrite);
+	}
+	pos_write += bytes_written;
+	if(pos_write > buff_size)
+	{
+		fprintf(stderr, "Logic error: WROTE past end of buffer!\n");
+	}
+
+	return bytes_written;
+}
+
 size_t write_to_buffer(size_t toWrite)
 {
 	if(g_log_writes)
-		fprintf(stderr, "Writing %zu bytes from random device to buffer\n", toWrite);
+		fprintf(stderr, "%zu bytes random device -> buffer\n", toWrite);
+
 	// If our buffer is full, nullop.
-	if(buff_size == buff_read_remaining)
+	if(get_read_remaining() == buff_size)
 	{
 		if(g_log_writes)
 			fprintf(stderr, "Buffer full.\n");
 		return 0;
 	}
 
-	// If we don't have enough space in the buffer to add as many bytes as
-	// we're asked, reduce how many bytes we'll add.
-	toWrite = toWrite < (buff_size - buff_read_remaining) ? toWrite : (buff_size - buff_read_remaining);
-	if(g_log_writes)
-		fprintf(stderr, "Calculated toWrite(%zu)\n", toWrite);
-	
+	// First, let's cap our write to however many bytes we can still fit in the buffer.
+	const size_t first_write_remaining = buff_size - get_read_remaining();
+	const size_t capped_write = toWrite > first_write_remaining ? first_write_remaining : toWrite;
+	const size_t distance_to_end = buff_size - pos_write;
 
-	// If we don't have any bytes left to work with, drop out.
-	if(toWrite == 0)
-	{
-		fprintf(stderr, "Buffer empty\n");
-		return 0;
-	}
+	// First write: From here up to the edge of our buffer, or until we've
+	// satisfied our write quantity, whichever comes first.
 
-	// Buffer is wrapping.
-	if(pos_write >= buff_size)
-	{
-		if(g_log_writes)
-			fprintf(stderr, "Buffer wrapped\n");
-		pos_write -= buff_size;
-	}
-
-	// Now we need to do one or two operations, depending on if our
-	// write range goes over the buffer wrap
-	size_t first_write = (toWrite <= (buff_size - pos_write)) ? toWrite : (buff_size - pos_write);
-	size_t bytes_written = write_to_buffer_internal(toWrite, pos_write);
+	const size_t first_write_qty = capped_write > distance_to_end ? distance_to_end : capped_write;
 
 	if(g_log_writes)
-		fprintf(stderr, "first_write(%zu), bytes_written(%zu)\n", first_write, bytes_written);
-
-	toWrite -= bytes_written;
-	buff_read_remaining += bytes_written;
-	pos_write += bytes_written;
-	read_in_count += bytes_written;
-
-	if((toWrite > 0 && buff_size) > (buff_read_remaining))
 	{
-		size_t bytes_written_second = write_to_buffer_internal(toWrite, pos_write);
-		fprintf(stderr, "toWrite(%zu), bytes_written_second(%zu)\n", toWrite, bytes_written_second);
-		buff_read_remaining += bytes_written_second;
-		pos_write += bytes_written_second;
-		read_in_count += bytes_written_second;
-		bytes_written += bytes_written_second;
+		fprintf(stderr, "bs(%d), grr(%zu), fwr(%zu), cw(%zu), dte(%zu), fwq(%zu), pw(%d)\n", buff_size, get_read_remaining(), first_write_remaining, capped_write, distance_to_end, first_write_qty, pos_write);
 	}
 
-	return bytes_written;
+	const size_t first_bytes_written = write_to_buffer_internal(first_write_qty);
+
+	// All done here?
+	if(first_write_qty == capped_write)
+	{
+		return first_bytes_written;
+	}
+
+	// Not quite; our buffer just wrapped, so we get to go again.
+	const size_t second_write_qty = capped_write - first_write_qty;
+	const size_t second_bytes_written = write_to_buffer_internal(second_write_qty);
+
+	return second_bytes_written;
 }
 
 int check_ent()
@@ -190,6 +240,7 @@ void print_usage(int argc, char* argv[])
 		"\t-p, --print-period=MILLISECONDS\tHow often to print an update on operational information.\n"
 		"\t-R, --log-reads\t\tPrint diagnostic information when entropy is read by us from the random device.\n"
 		"\t-W, --log-writes\t\tPrint diagnostic information when entropy is written to the random device.\n"
+		"\t-b, --buffer-size=BYTES\t\tSet the size of our internal entropy buffer.\n"
 		"\t-h, --help\t\tThis help message\n";
 
 	fprintf(stderr, usage, argv[0]);
@@ -211,8 +262,9 @@ int main(int argc, char* argv[])
 		int wt = waittime;
 		int pp = printperiod;
 		char* rp = rand_path;
+		int bs = (int) buff_size;
 
-		const char shortopts[] = "i:l:w:p:r:hRW";
+		const char shortopts[] = "i:l:w:p:r:hRWb:";
 		static const struct option longopts[] = {
 			{ "high-thresh", required_argument, NULL, 'i' },
 			{ "low-thresh", required_argument, NULL, 'l' },
@@ -221,6 +273,7 @@ int main(int argc, char* argv[])
 			{ "rand-path", required_argument, NULL, 'r'},
 			{ "log-reads", no_argument, NULL, 'R'},
 			{ "log-writes", no_argument, NULL, 'W'},
+			{ "buff-size", required_argument, NULL, 'b'},
 			{ "help", no_argument, NULL, 'h'},
 			{ NULL, 0, NULL, 0 }
 		};
@@ -253,6 +306,9 @@ int main(int argc, char* argv[])
 			case 'W':
 				// yes, I realize the internal names are confusing.
 				g_log_reads = true;
+				break;
+			case 'b':
+				bs = atoi(optarg);
 				break;
 			case 'h':
 				print_usage(argc, argv);
@@ -297,12 +353,19 @@ int main(int argc, char* argv[])
 			return 1;
 		}
 
+		if(bs <= 0)
+		{
+			fprintf(stderr, "Error: buffer size must be greater than 0.\n");
+			return 1;
+		}
+
 		// Finally, assign our temporaries back.
 		entthresh_high = e_h;
 		entthresh_low = e_l;
 		waittime = wt;
 		printperiod = pp;
 		rand_path = rp;
+		buff_size = bs;
 	}
 
 	// Now start setting up our operations pieces.
@@ -351,7 +414,7 @@ int main(int argc, char* argv[])
 		slept += waittime;
 		if(slept >= (1000 * printperiod))
 		{
-			fprintf(stderr, "entcnt(%d), buffer(%d) read(%llu) write(%llu)\n", entcnt, buff_read_remaining, (unsigned long long int) read_in_count, (unsigned long long int) read_out_count);
+			fprintf(stderr, "entcnt(%d), buffer(%zu)\n", entcnt, get_read_remaining());
 			slept = 0;
 		}
 		entcnt = check_ent();
