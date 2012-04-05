@@ -18,26 +18,54 @@ int looping = 1;
 int buff_write_pos = 0;
 int buff_read_pos = 0;
 int buff_size = 8388608;
-char* entbuff = 0;
+/*@null@*/
+char* entbuff = NULL;
+
+/*@null@*/
+FILE* fdRandom = NULL;
 
 void unmap_ent()
 {
 	// unmap. Should be called by atexit() if we successfully mapped.
-	munmap(entbuff, buff_size);
+	if(NULL != entbuff)
+	{
+		int res = munmap(entbuff, (size_t) buff_size);
+		if(0 != res)
+		{
+			perror("Error unmapping anonymous buffer");
+			abort();
+		}
+	}
 }
-
-FILE* fdRandom = NULL;
 
 void close_fdRandom()
 {
-	fclose(fdRandom);
+	if(NULL != fdRandom)
+	{
+		int res = fclose(fdRandom);
+		if(0 != res)
+		{
+			perror("Error closing random device");
+			abort();
+		}
+	}
+	else
+	{
+		fprintf(stderr, "Logic error: Random device fd null\n");
+	}
 }
 
 int check_ent()
 {
+	if(NULL == fdRandom)
+	{
+		fprintf(stderr, "Logic error: Random device fd null\n");
+		abort();
+	}
+
+	const int fNo = fileno(fdRandom);
 	int entcnt;
-        int r;
-	r = ioctl(fileno(fdRandom), RNDGETENTCNT, &entcnt);
+        int r = ioctl(fNo, RNDGETENTCNT, &entcnt);
 	if(0 > r) {
                 fprintf(stderr, "Error with ioctl call: %s\n", strerror(errno));
 		return -1;
@@ -50,21 +78,22 @@ size_t get_read_remaining()
 	int remaining = buff_write_pos - buff_read_pos;
 
 	if(remaining >= 0)
-		return remaining;
+		return (size_t) remaining;
 
 	// Buffer is probably wrapping.
 	remaining += buff_size;
 
 	if(remaining >= 0)
-		return remaining;
+		return (size_t) remaining;
 
 	// Logic error! There's no valid case where this should happen.
 	fprintf(stderr, "Internal error in buffer memory management!\n");
 	abort();
+	// Execution does not pass abort()
 }
 
 bool g_log_buffer_to_rand = false;
-size_t buffer_to_rand_internal(const size_t to_transfer)
+size_t buffer_to_rand_internal(const int to_transfer)
 {
 	if(buff_read_pos >= buff_size)
 	{
@@ -72,7 +101,7 @@ size_t buffer_to_rand_internal(const size_t to_transfer)
 		{
 			if(g_log_buffer_to_rand)
 			{
-				fprintf(stderr, "-W: buffer_to_rand_internal detected buffer wrap. to_transfer(%zu)\n", to_transfer);
+				fprintf(stderr, "-W: buffer_to_rand_internal detected buffer wrap. to_transfer(%d)\n", to_transfer);
 				fprintf(stderr, "-W:entcnt(%d), buffer(%zu)\n", check_ent(), get_read_remaining());
 			}
 			// Buffer wrapped.
@@ -104,7 +133,7 @@ size_t buffer_to_rand_internal(const size_t to_transfer)
 
 	if(g_log_buffer_to_rand)
 	{
-		fprintf(stderr, "-W: Write. written(%zu) = buff_read_pos(%d), to_transfer(%zu)\n", written, buff_read_pos, to_transfer);
+		fprintf(stderr, "-W: Write. written(%zu) = buff_read_pos(%d), to_transfer(%d)\n", written, buff_read_pos, to_transfer);
 	}
 
 	buff_read_pos += written;
@@ -134,7 +163,7 @@ size_t buffer_to_rand(const size_t to_transfer)
 
 	// First, let's cap our read to however many bytes we have in the buffer.
 	const size_t first_read_remaining = get_read_remaining();
-	const size_t capped_read = to_transfer> first_read_remaining  ? first_read_remaining : to_transfer;
+	const size_t capped_read = to_transfer > first_read_remaining ? first_read_remaining : to_transfer;
 	const size_t distance_to_end = buff_size - buff_read_pos;
 
 	// First read: From here up to the edge of our buffer, or until we've
