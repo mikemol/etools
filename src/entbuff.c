@@ -1,17 +1,17 @@
 #include "../config.h"
-#include <stdio.h>
-#include <fcntl.h>
-#include <unistd.h>
+#define _POSIX_C_SOURCE 199309L
+
+// This is the header file that lets us poll for the kernel's entropy level.
+#include <linux/random.h>
+
 #include <sys/ioctl.h>
 #include <time.h>
 #include <string.h>
 #include <errno.h>
 #include <stdlib.h>
-#include <sys/mman.h>
 #include <getopt.h>
 #include <stdbool.h>
-
-#include <linux/random.h>
+#include <stdio.h>
 
 int looping = 1;
 
@@ -24,17 +24,16 @@ char* entbuff = NULL;
 /*@null@*/
 FILE* fdRandom = NULL;
 
-void unmap_ent()
+void free_entropy_buffer()
 {
 	// unmap. Should be called by atexit() if we successfully mapped.
 	if(NULL != entbuff)
 	{
-		int res = munmap(entbuff, (size_t) buff_size);
-		if(0 != res)
-		{
-			perror("Error unmapping anonymous buffer");
-			abort();
-		}
+		free(entbuff);
+	}
+	else
+	{
+		fprintf(stderr, "Logic error: free_entropy_buffer called on NULL entropy buffer.\n");
 	}
 }
 
@@ -302,21 +301,55 @@ void print_usage(int argc, char* argv[])
 	fprintf(stderr, usage, argv[0]);
 }
 
+double timespec_to_double(const struct timespec* t)
+{
+	if(NULL == t)
+	{
+		fprintf(stderr, "Logic error: timespec pointer NULL.\n");
+		abort();
+	}
+	// double is good for integers up to about 2^56. At nsec precision,
+	// that gives us about two years. So we'll live with it. Convert
+	// timespecs to doubles, compare those.
+	return (double) t->tv_sec * 1000000000.0 + (double) t->tv_nsec;
+}
+
+bool timespec_lt(const struct timespec* l, const struct timespec* r)
+{
+	return timespec_to_double(l) < timespec_to_double(r);
+}
+
+bool timespec_lte(const struct timespec* l, const struct timespec* r)
+{
+	return timespec_to_double(l) <= timespec_to_double(r);
+}
+
+bool timespec_gt(const struct timespec* l, const struct timespec* r)
+{
+	return timespec_to_double(l) > timespec_to_double(r);
+}
+
+bool timespec_gte(const struct timespec* l, const struct timespec* r)
+{
+	return timespec_to_double(l) >= timespec_to_double(r);
+}
+
 int main(int argc, char* argv[])
 {
 	// Knobs, tunables and argument processing.
 	int entthresh_high = 4096 * 1 / 2; // -i --high-thresh
 	int entthresh_low = 4096 * 1 / 16; // -l --low-thresh
-        int waittime = 2500; // microseconds // -w --wait
-	int printperiod = 1000; // milliseconds, roughly // -p --print-period
+	struct timespec waittime = { 0, 2500000 }; // seconds,nanoseconds // -w --wait
+	struct timespec printperiod	= { 1, 0 }; // seconds,nanoseconds // -p --print-period
+	
 	char* rand_path = "/dev/random"; // -r --rand-path
 
 	{
 		// Use temporaries for argument input.
 		int e_h = entthresh_high;
 		int e_l = entthresh_low;
-		int wt = waittime;
-		int pp = printperiod;
+		int wt = waittime.tv_sec * 1000 + waittime.tv_nsec / 1000000; // milliseconds
+		int pp = printperiod.tv_sec * 1000 + waittime.tv_nsec / 1000000; // milliseconds
 		char* rp = rand_path;
 		int bs = (int) buff_size;
 
@@ -416,30 +449,29 @@ int main(int argc, char* argv[])
 		// Finally, assign our temporaries back.
 		entthresh_high = e_h;
 		entthresh_low = e_l;
-		waittime = wt;
-		printperiod = pp;
+
+		waittime.tv_sec = wt / 1000; // ms to seconds
+		waittime.tv_nsec = 1000000 * (wt % 1000); // remainder ms to ns
+
+		printperiod.tv_sec = wt / 1000; // ms to seconds
+		printperiod.tv_nsec = wt / 1000000 * (wt % 1000); // remainder ms to ns
 		rand_path = rp;
 		buff_size = bs;
 	}
 
 	// Now start setting up our operations pieces.
 	
-	entbuff = mmap(NULL, buff_size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
-	if(MAP_FAILED == entbuff)
-	{
-                fprintf(stderr, "Error with mmap call: %s\n", strerror(errno));
-		return 1;
-	}
+	entbuff = malloc(buff_size);
 	if(NULL == entbuff)
 	{
-		fprintf(stderr, "mmap returned NULL?!: %s\n", strerror(errno));
+		perror("Failed to allocate memory for entropy buffer\n");
 		return 1;
 	}
 
-	int at_res = atexit(unmap_ent); // We mapped, so unmap when we're done.
+	int at_res = atexit(free_entropy_buffer); // We mapped, so unmap when we're done.
 	if(0 != at_res)
 	{
-		fprintf(stderr, "Warning: failed to register unmap_ent with atexit()");
+		fprintf(stderr, "Warning: failed to register free_entropy_buffer with atexit()");
 	}
 
 	fdRandom = fopen(rand_path, "rw");
@@ -458,18 +490,27 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "Warning: failed to register close_fdRandom with atexit()");
 	}
 
-
         // loop here, calling ioctl(rfd, RNDGETENTCNT) and printing the result
         int entcnt = check_ent();
-	size_t slept = 0;
+	struct timespec wait_remainder;
+	struct timespec slept = {0,0};
 	while( -1 != entcnt)
 	{
-                int ures = usleep(waittime);
-		slept += waittime;
-		if(slept >= (1000 * printperiod))
+                int sres = nanosleep(&waittime, &wait_remainder);
+		if(0 != sres)
+		{
+			perror("Sleep interrupted");
+			abort();
+		}
+		
+		slept.tv_sec += (waittime.tv_sec - wait_remainder.tv_sec);
+		slept.tv_nsec += (waittime.tv_nsec - wait_remainder.tv_nsec);
+
+		if(timespec_gte(&slept, &waittime))
 		{
 			fprintf(stderr, "entcnt(%d), buffer(%zu)\n", entcnt, get_read_remaining());
-			slept = 0;
+			slept.tv_sec = 0;
+			slept.tv_nsec = 0;
 		}
 		entcnt = check_ent();
 		if ( (entcnt > entthresh_high) || (entcnt < entthresh_low) )
