@@ -42,7 +42,7 @@ int main(int argc, char* argv[])
 			{ "wait", required_argument, NULL, 'w'},
 			{ "rand-path", required_argument, NULL, 'r'},
 			{ "help", no_argument, NULL, 'h'},
-			{ NULL, NULL, NULL, NULL}
+			{ NULL, 0, NULL, 0 }
 		};
 
 		int indexptr = 0;
