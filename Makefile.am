@@ -1,4 +1,4 @@
-AM_CFLAGS = -std=gnu99
+AM_CFLAGS = -std=c99
 
 bin_PROGRAMS = entwatch entbuff
 
