@@ -458,7 +458,7 @@ int main(int argc, char* argv[])
 		if(e_l % 8 != 0)
 		{
 			fprintf(stderr, "Error: low threshold must be a multiple of eight.\n");
-			reutrn 1;
+			return 1;
 		}
 
 		// Finally, assign our temporaries back.
