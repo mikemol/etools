@@ -453,8 +453,8 @@ int main(int argc, char* argv[])
 		waittime.tv_sec = wt / 1000; // ms to seconds
 		waittime.tv_nsec = 1000000 * (wt % 1000); // remainder ms to ns
 
-		printperiod.tv_sec = wt / 1000; // ms to seconds
-		printperiod.tv_nsec = wt / 1000000 * (wt % 1000); // remainder ms to ns
+		printperiod.tv_sec = pp / 1000; // ms to seconds
+		printperiod.tv_nsec = pp / 1000000 * (pp % 1000); // remainder ms to ns
 		rand_path = rp;
 		buff_size = bs;
 	}
@@ -506,12 +506,13 @@ int main(int argc, char* argv[])
 		slept.tv_sec += (waittime.tv_sec - wait_remainder.tv_sec);
 		slept.tv_nsec += (waittime.tv_nsec - wait_remainder.tv_nsec);
 
-		if(timespec_gte(&slept, &waittime))
+		if(timespec_gte(&slept, &printperiod))
 		{
 			fprintf(stderr, "entcnt(%d), buffer(%zu)\n", entcnt, get_read_remaining());
 			slept.tv_sec = 0;
 			slept.tv_nsec = 0;
 		}
+		
 		entcnt = check_ent();
 		if ( (entcnt > entthresh_high) || (entcnt < entthresh_low) )
 		{
