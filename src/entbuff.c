@@ -409,7 +409,7 @@ int main(int argc, char* argv[])
 		
 		// Validate input.
 		// First, high-thresh must be greater than low-thresh.
-		if(e_l >= e_h)
+		if(e_l > e_h)
 		{
                 	fprintf(stderr, "Error: high threshold(%i) must be greater than low threshold(%i).\n", e_h, e_l);
 			return 1;
@@ -444,6 +444,21 @@ int main(int argc, char* argv[])
 		{
 			fprintf(stderr, "Error: buffer size must be greater than 0.\n");
 			return 1;
+		}
+
+		// Next, check that low and high threshholds are multiples of
+		// eight. If they're not, we get headaches from unintuitive
+		// behavior resulting from bits/bytes conversions.
+		if(e_h % 8 != 0)
+		{
+			fprintf(stderr, "Error: high threshold must be a multiple of eight.\n");
+			return 1;
+		}
+
+		if(e_l % 8 != 0)
+		{
+			fprintf(stderr, "Error: low threshold must be a multiple of eight.\n");
+			reutrn 1;
 		}
 
 		// Finally, assign our temporaries back.
