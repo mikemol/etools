@@ -474,7 +474,7 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "Warning: failed to register free_entropy_buffer with atexit()");
 	}
 
-	fdRandom = fopen(rand_path, "rw");
+	fdRandom = fopen(rand_path, "a+");
 	if(0 == fdRandom)
 	{
                 fprintf(stderr, "Unable to open %s for r/w: %s\n", rand_path, strerror(errno));
