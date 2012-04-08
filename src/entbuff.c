@@ -191,7 +191,7 @@ size_t buffer_to_rand(const size_t to_transfer)
 	}
 	const size_t second_bytes_read = buffer_to_rand_internal(second_read_qty);
 	
-	return second_bytes_read;
+	return first_bytes_read + second_bytes_read;
 }
 
 bool g_log_rand_to_buffer = false;
@@ -277,7 +277,7 @@ size_t rand_to_buffer(size_t to_transfer)
 	const size_t second_write_qty = capped_write - first_write_qty;
 	const size_t second_bytes_written = rand_to_buffer_internal(second_write_qty);
 
-	return second_bytes_written;
+	return first_bytes_written + second_bytes_written;
 }
 
 
