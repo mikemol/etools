@@ -334,6 +334,50 @@ bool timespec_gte(const struct timespec* l, const struct timespec* r)
 	return timespec_to_double(l) >= timespec_to_double(r);
 }
 
+void entropy_watch_loop(const struct timespec* waittime, const struct timespec* printperiod, const int entthresh_high, const int entthresh_low)
+{
+        // loop here, calling ioctl(rfd, RNDGETENTCNT) and printing the result
+        int entcnt = check_ent();
+	struct timespec wait_remainder;
+	struct timespec slept = {0,0};
+	while( -1 != entcnt)
+	{
+                int sres = nanosleep(waittime, &wait_remainder);
+		if(0 != sres)
+		{
+			perror("Sleep interrupted");
+			abort();
+		}
+		
+		slept.tv_sec += (waittime->tv_sec - wait_remainder.tv_sec);
+		slept.tv_nsec += (waittime->tv_nsec - wait_remainder.tv_nsec);
+
+		if(timespec_gte(&slept, printperiod))
+		{
+			fprintf(stderr, "entcnt(%d), buffer(%zu)\n", entcnt, get_read_remaining());
+			slept.tv_sec = 0;
+			slept.tv_nsec = 0;
+		}
+		
+		entcnt = check_ent();
+		if ( (entcnt > entthresh_high) || (entcnt < entthresh_low) )
+		{
+			// entcnt and entthresh_* are in bits, but we can only work in multiples
+			// of 8 bits.
+			if(((entcnt - entthresh_high) / 8) > 0)
+			{
+				// Let's pull some bytes in for later.
+				rand_to_buffer((entcnt - entthresh_high) / 8);
+			}
+			else if(((entthresh_low - entcnt) / 8) > 0)
+			{
+				// Let's get that back up to the threshold.
+				buffer_to_rand((entthresh_low - entcnt) / 8);
+			}
+		}
+	}
+}
+
 int main(int argc, char* argv[])
 {
 	// Knobs, tunables and argument processing.
@@ -505,47 +549,8 @@ int main(int argc, char* argv[])
 		fprintf(stderr, "Warning: failed to register close_fdRandom with atexit()");
 	}
 
-        // loop here, calling ioctl(rfd, RNDGETENTCNT) and printing the result
-        int entcnt = check_ent();
-	struct timespec wait_remainder;
-	struct timespec slept = {0,0};
-	while( -1 != entcnt)
-	{
-                int sres = nanosleep(&waittime, &wait_remainder);
-		if(0 != sres)
-		{
-			perror("Sleep interrupted");
-			abort();
-		}
-		
-		slept.tv_sec += (waittime.tv_sec - wait_remainder.tv_sec);
-		slept.tv_nsec += (waittime.tv_nsec - wait_remainder.tv_nsec);
+	entropy_watch_loop(&waittime, &printperiod, entthresh_high, entthresh_low);
 
-		if(timespec_gte(&slept, &printperiod))
-		{
-			fprintf(stderr, "entcnt(%d), buffer(%zu)\n", entcnt, get_read_remaining());
-			slept.tv_sec = 0;
-			slept.tv_nsec = 0;
-		}
-		
-		entcnt = check_ent();
-		if ( (entcnt > entthresh_high) || (entcnt < entthresh_low) )
-		{
-			// entcnt and entthresh_* are in bits, but we can only work in multiples
-			// of 8 bits.
-			if(((entcnt - entthresh_high) / 8) > 0)
-			{
-				// Let's pull some bytes in for later.
-				rand_to_buffer((entcnt - entthresh_high) / 8);
-			}
-			else if(((entthresh_low - entcnt) / 8) > 0)
-			{
-				// Let's get that back up to the threshold.
-				buffer_to_rand((entthresh_low - entcnt) / 8);
-			}
-		}
-	}
-
-        return 0;
+	return 0;
 }
 
