@@ -1,6 +1,6 @@
 A collection of tools developed as I've struggled to deal with entropy starvation in my home network and on my online servers.
 
-Copyright(c) 2012 Michael Mol <mikemol@gmail.com>, Creative Commons v3 Attribution License, unported. See COPYING for full license text.
+Copyright(c) 2012 Michael Mol <mikemol@gmail.com>, ISC License. See COPYING for full license text.
 
 NOTE: Before the steps under 'INSTALL', run 'bootstrap.sh'. You will need to have the automake and autoconf packages installed.
 
