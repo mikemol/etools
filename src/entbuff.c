@@ -337,6 +337,24 @@ bool timespec_gte(const struct timespec* l, const struct timespec* r)
 	return timespec_to_double(l) >= timespec_to_double(r);
 }
 
+int floor_by_8(const int in)
+{
+	// Fractional of 8.
+	const int remainder = in % 8;
+
+	return in - remainder;
+}
+
+int ceil_by_8(const int in)
+{
+	// If we're already a multiple of 8, adding 7 will take us just shy of
+	// the next multiple of 8. If we're not a multiple of 8, adding 7 will
+	// result us in either being a multiple of 8, or being between the
+	// next two multiples of eight. Flooring will take us to the nearer of
+	// the two.
+	return floor_by_8(in + 7);
+}
+
 void entropy_watch_loop(const struct timespec* waittime, const struct timespec* printperiod, const int entthresh_high, const int entthresh_low)
 {
         // loop here, calling ioctl(rfd, RNDGETENTCNT) and printing the result
@@ -363,21 +381,35 @@ void entropy_watch_loop(const struct timespec* waittime, const struct timespec* 
 		}
 		
 		entcnt = check_ent();
-		if ( (entcnt > entthresh_high) || (entcnt < entthresh_low) )
+		if ( entcnt >= entthresh_high )
 		{
-			// entcnt and entthresh_* are in bits, but we can only work in multiples
-			// of 8 bits.
-			if(((entcnt - entthresh_high) / 8) > 0)
+			int e8f = floor_by_8(entcnt);
+			int extra_bytes = (e8f - entthresh_high) / 8;
+
+			while(extra_bytes > 0)
 			{
-				// Let's pull some bytes in for later.
-				rand_to_buffer((entcnt - entthresh_high) / 8);
-			}
-			else if(((entthresh_low - entcnt) / 8) > 0)
-			{
-				// Let's get that back up to the threshold.
-				buffer_to_rand((entthresh_low - entcnt) / 8);
+				const int transferred = rand_to_buffer(extra_bytes);
+				if(extra_bytes != transferred)
+				{
+					// Not all transferred. Try again later.
+					break;
+				}
+
+				entcnt = check_ent();
+				e8f = floor_by_8(entcnt);
+				extra_bytes = (e8f - entthresh_high) / 8;
 			}
 		}
+		else if ( entcnt <= entthresh_low )
+		{
+			int e8c = ceil_by_8(entcnt);
+			int deficient_bytes = (entthresh_low - e8c) / 8;
+
+			buffer_to_rand(deficient_bytes);
+		}
+		// Remaining case means we're within the noop zone.
+
+		entcnt = check_ent();
 	}
 }
 
