@@ -69,6 +69,7 @@ int check_ent()
                 fprintf(stderr, "Error with ioctl call: %s\n", strerror(errno));
 		return -1;
         }
+
 	return entcnt;
 }
 
@@ -158,7 +159,9 @@ size_t buffer_to_rand(const size_t to_transfer)
 	}
 
 	if(g_log_buffer_to_rand)
+	{
 		fprintf(stderr, "-W: %zu bytes buffer -> random device\n", to_transfer);
+	}
 
 	// First, let's cap our read to however many bytes we have in the buffer.
 	const size_t first_read_remaining = get_read_remaining();
