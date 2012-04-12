@@ -225,7 +225,7 @@ size_t rand_to_buffer_internal(size_t to_transfer)
 	}
 
 	size_t bytes_written = fread(entbuff + buff_write_pos, 1, to_transfer, fdRandom);
-	if(g_log_buffer_to_rand)
+	if(g_log_rand_to_buffer)
 	{
 		fprintf(stderr, "-R: Write. rtb. written(%zu) = buff_write_pos(%d), to_transfer(%zu)\n", bytes_written, buff_write_pos, to_transfer);
 	}
