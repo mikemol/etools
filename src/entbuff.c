@@ -341,7 +341,7 @@ void entropy_watch_loop(const struct timespec* waittime, const struct timespec* 
 {
         // loop here, calling ioctl(rfd, RNDGETENTCNT) and printing the result
         int entcnt = check_ent();
-	struct timespec wait_remainder;
+	struct timespec wait_remainder = {0,0};
 	struct timespec slept = {0,0};
 	while( -1 != entcnt)
 	{
