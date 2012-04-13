@@ -4,6 +4,67 @@ Copyright(c) 2012 Michael Mol <mikemol@gmail.com>, ISC License. See COPYING for 
 
 NOTE: Before the steps under 'INSTALL', run 'bootstrap.sh'. You will need to have the automake and autoconf packages installed.
 
+Table Of Contents
+1. Introduction
+1.1. What is entropy?
+1.2. Random numbers? Can't $ALGORITHM handle that?
+1.3. Where does it come from?
+1.4. Entropy pool?
+1.5. Why do I care?
+1.6. What does this package do for me?
+1.7. You're wrong!
+2. List of programs
+
+** 1. Introduction
+
+First off, I'll note that a great deal of this introduction would probably be better served simply pointing to some accessable primer for the topics at hand. I'm not aware of any such document.
+
+*** 1.1. What is entropy?
+
+Entropy is a quantity or measure of randomness. You could think of it as some set of random 1s and 0s. It's probably easiest to think of it as a set of random, unrelated numbers.
+
+*** 1.2. Random numbers? Can't $ALGORITHM handle that? What about hardware?
+
+To some extent, sure. Different Pseudo-Random Number Generators (PRNGs). For some use cases, certainly; some scientific uses like the reproducable nature of PRNGs. For other cases, such as cryptography, a reproduceable random-number generator is harmful.
+
+Yes, there is hardware for generating random numbers. It's typically either expensive, inconvenient, uncommon or some combination of the three. In the expensive category are expansion cards which can cost a couple thousand dollard. In the inconvenient category sits things like USB HRNGs; it's rather difficult to plug a USB device into a rented virtual machine in a data center a few thousand miles away. In the uncommon category are things like specialized CPU instructions; Intel's Bull Mountain RDRAND instruction is part of the not-yet-available Ivy Bridge core, and it's extraordinarily doubtful that that CPU instruction will be available to the majority of virtual machines within a decade.
+
+*** 1.3. Why do I care?
+
+A variety of reasons, some related to security, others related to performance.
+
+Counted among the security reasons are things like source-port randomization (for things like DNS requests), cryptographic key generation (such as the symetric keys used in SSH and TLS connections) and address-space layout randomization (ASLR, which is a mitigation mechanism against a variety of hacking techniques).
+
+To understand the performance reasons, you have to be familiar with the difference between /dev/random and /dev/urandom on Linux.
+
+* /dev/random serves up random numbers from the kernel's "entropy pool", and reads from /dev/random block (as in, your program halts) if there isn't enough entropy in the entropy pool to satisfy the read request. This can take a long time. On one of my systems, the entropy pool shows new data only every five to ten seconds; that's an annoyingly long time for a process to hang.
+* /dev/urandom begins with serving up random numbers from the entropy pool, but falls back to a CPU-driven PRNG if that pool is emptied. That means that CPU is consumed when the entropy pool isn't sufficient.
+
+*** 1.5. Entropy pool?
+
+The Linux kernel has a pool of data it uses to provide random numbers, called the entropy pool. As of the 3.x series of kernels, at least, this pool is limited to 4096 bits(512 bytes) of entropy. This is not a lot. Executing a single instance of 'ps' consumes 128 bits of entropy on my system. Disconnecting an *established* ssh connection consumes 384 bits of entropy. Your entropy pool drains quite quickly.
+
+The entropy pool gets data from at least four sources:
+
+1) A timer interrupt adds a small amount of entropy based on jitter between timer events.
+2) Events such as some IRQ activity adds a larger amount of entropy.
+3) Keyboard and mouse intput adds greater amounts of entropy.
+4) Writes to the /dev/random device by an appropriately privileged user also adds data to the entropy pool.
+
+On a server, it's quite common for these sources to be insufficient to meet demand.
+
+*** 1.4. What does this package do for me?
+
+This package provides a set of tools to help you learn more about entropy on your system, and to reduce how frequently your system experiences entropy starvation.
+
+The entwatch program is designed to allow you to monitor your system's entropy level without actively consuming it; you could run something like "watch cat /proc/sys/kernel/random/entropy_avail" to keep an eye on it, but then you'd be consuming entropy every time the 'watch' program spawns the 'cat' program. entwatch means you consume the process-spawn entropy only once, and it polls the kernel for you.
+
+The entbuf program is designed to allow you to artificially expand the size of your entropy pool. When your entropy pool has an abunance of bits in it, entbuff will set some aside. When your entropy pool is nearing starvation, entbuff will try to use its reserves to feed bits back in.
+
+The entmesh set of programs hasn't been written yet. It's intended to be a modular framework of programs allowing entropy to be hoarded (as entbuff does), tapped, filtered, gathered from hardware sources or transferred over serial or network connections. It's still very much in the design stage.
+
+** 2. List of programs
+
 entbuff - Behaves as an entropy capacitor. When the kernel entropy pool is above one threshold, entropy is pulled from the kernel and stored in an internal buffer. When the kernel entropy pool falls below another threshold, entropy is taken from the internal buffer and written back to the pool.
 
 entwatch -- Polls the kernel, prints the current entropy level.
