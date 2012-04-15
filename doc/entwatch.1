@@ -6,7 +6,7 @@
 entwatch \- monitor the kernel entropy level from the console.
 .SH SYNOPSIS
 .B entwatch [-wh] [-r
--I rand-path
+.I rand-path
 .B ]
 .SH DESCRIPTION
 .B entwatch
@@ -17,7 +17,7 @@ By default, it accesses the kernel via the file found at
 
 While the user may query the entropy pool by reading the file
 .I /proc/sys/kernel/random/entropy_avail
- with a command like
+with a command like
 .BR cat (1)
 , doing so consumes kernel entropy as a result of Address Space Layout Randomization (ASLR). Using
 .BR entwatch (1)
@@ -53,7 +53,7 @@ The wait time passed on the command line was not an integer greater than 0.
 Error opening
 .I file
 :
-.I reason...
+.I reason
 .RS
 .BR entwatch
 was unable to open the random device file
@@ -63,7 +63,7 @@ The system libc's error is given for further diagnostics.
 Error with ioctl call on 
 .I file
 :
-.I reason...
+.I reason
 .RS
 .BR entwatch
 failed to issue its querying ioctl on the random device file
