@@ -1,0 +1,86 @@
+.\" Process this file with
+.\" groff -man -Tascii entwatch.1
+.\"
+.TH ENTWATCH 1 "April 2012" Linux "User Manuals"
+.SH NAME
+entwatch \- monitor the kernel entropy level from the console.
+.SH SYNOPSIS
+.B entwatch [-wh] [-r
+-I rand-path
+.B ]
+.SH DESCRIPTION
+.B entwatch
+polls the kernel entropy pool, and emits each reading to standard output.
+By default, it accesses the kernel via the file found at
+.I /dev/random
+, and waits one second between reports.
+
+While the user may query the entropy pool by reading the file
+.I /proc/sys/kernel/random/entropy_avail
+ with a command like
+.BR cat (1)
+, doing so consumes kernel entropy as a result of Address Space Layout Randomization (ASLR). Using
+.BR entwatch (1)
+to perform successive reads ensures that the user only spend entropy on ASLR once for the purpose.
+.SH OPTIONS
+.IP "-w, --wait=SECONDS"
+Wait
+.I SECONDS
+seconds between reports.
+.IP "-r, --rand-path=PATH"
+Use the file found at
+.I PATH
+instead of the default file
+.I /dev/random .
+.IP "-h, --help"
+Print options and usage information.
+.SH FILES
+.I /dev/random
+.RS
+The file
+.BR entwatch (1)
+will perform ioctls on, by default.
+.SH ENVIRONMENT
+No environment variables are paid particular attention by
+.BR entwatch (1) .
+.SH DIAGNOSTICS
+The following diagnostics may be issued on standard error:
+
+Error wait time must be greater than 0.
+.RS
+The wait time passed on the command line was not an integer greater than 0.
+.RE
+Error opening
+.I file
+:
+.I reason...
+.RS
+.BR entwatch
+was unable to open the random device file
+.I file .
+The system libc's error is given for further diagnostics.
+.RE
+Error with ioctl call on 
+.I file
+:
+.I reason...
+.RS
+.BR entwatch
+failed to issue its querying ioctl on the random device file
+.I file .
+The system libc's error is given for further diagnostics.
+.SH BUGS
+Since
+.BR entwatch (1)
+was first written,
+.BR entbuff (8)
+evolved significantly more functionality and configurability, including an improved code style and differing command-line units for similar parameters.
+.BR entwatch (1)
+should be brought up to snuff.
+.SH AUTHOR
+Michael Mol <mikemol at gmail dot com>
+(And more; see AUTHORS file)
+.SH "SEE ALSO"
+.BR entbuff (8)
+.BR /usr/src/linux/drivers/char/random.c
+
