@@ -12,6 +12,8 @@
 #include <getopt.h>
 #include <stdbool.h>
 #include <stdio.h>
+#include <alloca.h>
+#include <stdint.h>
 
 int looping = 1;
 
@@ -120,6 +122,50 @@ size_t buffer_to_rand_internal(const int to_transfer)
 		abort();
 	}
 
+	// I am *not* happy with using raw types like this, but that's what
+	// rngd is doing, as is random.h's rand_pool_info.
+	struct {
+		int entropy_count;
+		int buf_size;
+		unsigned char* buf;
+	} entropy;
+
+	entropy.entropy_count = to_transfer;
+	entropy.buf_size = to_transfer;
+	entropy.buf = alloca(to_transfer); // Allocate buffer space on the stack
+
+	const int fileNo = fileno(fdRandom);
+
+	if(-1 == fileNo)
+	{
+		perror("Unexpected failure while preparing to feed entropy to kernel\n");
+	}
+
+	const int ioRes = ioctl(fileNo, RNDADDENTROPY, &entropy);
+
+	switch(ioRes)
+	{
+	case 0:
+		// Good.
+		break;
+	case -EFAULT:
+		fprintf(stderr, "EFAULT error while adding entropy to kernel.");
+		abort();
+		break;
+	case -EPERM:
+		fprintf(stderr, "EPERM error while adding entropy to kernel.");
+		abort();
+		break;
+	case -EINVAL:
+		fprintf(stderr, "EINVAL error while adding entropy to kernel.");
+		abort();
+		break;
+	default:
+		fprintf(stderr, "Unknown error while adding entropy to kernel.");
+		abort();
+		break;
+	}
+	
 	size_t written = fwrite(entbuff + buff_read_pos, 1, to_transfer, fdRandom);
 
 	if(0 == written)
