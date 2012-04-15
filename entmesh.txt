@@ -22,59 +22,56 @@ Peer relationships:
   peer that it's starving for entropy, it's implicitly requesting that its
   peer send it entropy.
 
+Signaling events:
+* Entropy Transfer Request: When a node requests that its peer send it
+  entropy.
+* State Notificaton: When a node informs its peer of its current state.
+
 Tank levels, notifications and responses:
 
-+----------+------------+------------+------------+-----------+
-|      THEM|            |            |            |           |
-|          |    GOOD    |     OK     |    LOW     |  CRITICAL |
-|US        |            |            |            |           |
-+----------+------------+------------+------------+-----------+
-|          |            | We offer   | We send    | We send   |
-|   GOOD   |    STOP    | They stop  | We offer   | We offer  |
-|          |            |            | They stop  | They stop |
-+----------+------------+------------+------------+-----------+
-|          | We stop    |            | We offer   | We send   |
-|    OK    | They offer |    STOP    | They stop  | We offer  |
-|          |            |            |            | They stop |
-+----------+------------+------------+------------+-----------+
-|          | We stop    | We stop    |            | We offer  |
-|    LOW   | They send  | They offer |    STOP    | They stop |
-|          | They offer |            |            |           |
-+----------+------------+------------+------------+-----------+
-|          | We stop    | We stop    | We stop    |           |
-| CRITICAL | They send  | They send  | They offer |    STOP   |
-|          | They offer | They offer |            |           |
-+----------+------------+------------+------------+-----------+
++---------------------+----------------------------+
+|        STATES       |                            |
++----------+----------+ Implicit Transfer Requests |
+|  Node A  |  Node B  |                            |
++----------+----------+----------------------------+
+|   GOOD   |   GOOD   | None                       |
++----------+----------+----------------------------+
+|   GOOD   |    OK    | None                       |
++----------+----------+----------------------------+
+|   GOOD   |    LOW   | B requests entropy from A. |
++----------+----------+----------------------------+
+|   GOOD   | CRITICAL | B requests entropy from A. |
++----------+----------+----------------------------+
+|    OK    |   GOOD   | None                       |
++----------+----------+----------------------------+
+|    OK    |    LOW   | B requests entropy from A. |
++----------+----------+----------------------------+
+|    OK    | CRITICAL | B requests entropy from A. |
++----------+----------+----------------------------+
+|    LOW   |    LOW   | None                       |
++----------+----------+----------------------------+
+|    LOW   | CRITICAL | None                       |
++----------+----------+----------------------------+
+| CRITICAL | CRITICAL | None                       |
++----------+----------+----------------------------+
 
 What exactly corresponds to GOOD, OK, LOW or CRITICAL depends on the tank
 abstraction implementation.
-
-All actions described in the table are edge-triggered.
 
 It is an error for a node to transmit the same state twice; if it is already
 known to be in the GOOD state, and it announces again that it is in the GOOD
 state, it is in error, and the peering should be terminated.
 
-Offers are just that; offers. A receiving tank must accept an offer before a
-sending tank may send a continuous stream of data. If a receiving tank changes
-state again, a new offer is issued. Offers should be considered as
-relationship flags; a peer is either offering to send data, or it isn't.
+A node which receives an entropy transfer request is not required to send
+entropy in response.
 
-The purpose behind offers is to allow for the case where a node may have many
-peers in GOOD condition, but it itself begins to run LOW. It should tell its
-trusted peers that it is in the LOW state. Its peers should then send it data,
-with an offer for more. Depending on how much the peers send, our node may not
-require any additional data, and so it should not need to accept the offer.
+A node which receives a state update from its peer may discover that its peer
+is at a lower state than itself. It MUST treat this as an implicit entropy
+transfer request. If its peer is two or more steps lower, it SHOULD service
+the request.
+
 
 Offers, acceptence, sending and ceasing:
-Offers are implicit; a node is offering data to its peer if and only if their
-tank states indicate it should. Therefore, a node knows whether or not its peer
-is offering simply by knowing its own tank state and the tank state of its peer.
-
-A node MAY send a data request to an offering peer. The offering peer MAY send
-a stream of data back. If the sending node recinds its offer, or if the
-requesting node recinds its request, the sending node SHOULD cease sending.
-
 Example topologies:
 
 K = Kernel entropy pool, abstracted as a tank.
