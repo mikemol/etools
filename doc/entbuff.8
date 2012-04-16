@@ -5,7 +5,7 @@
 .SH NAME
 entbuff \- extend the kernel entropy buffer size via userspace
 .SH SYNOPSIS
-.B entbuff [-RWh] [-i 
+.B entbuff [-RWh] [-i
 .I high-bit-count
 .B ]
 .B [-l
@@ -27,36 +27,49 @@ entbuff \- extend the kernel entropy buffer size via userspace
 .B entbuff
 polls the kernel entropy pool. When the kernel entropy pool has more than
 .I high-bit-count
-bits of entropy, 
+bits of entropy,
 .B entbuff
-extracts entropy from the kernel and stores it in an internal buffer. When the kernel entropy pool has fewer than
+extracts entropy from the kernel and stores it in an internal buffer. When
+the kernel entropy pool has fewer than
 .I low-bit-count
 bits of entropy,
 .B entbuff
-moves entropy from its internal buffer back into the kernel entropy pool. In this way,
+moves entropy from its internal buffer back into the kernel entropy
+pool. In this way,
 .B entbuff
-effectively increases the size of the kernel's entropy pool, which is normally capped at 4096 bits.
+effectively increases the size of the kernel's entropy pool, which is
+normally capped at 4096 bits.
 
 .B entbuff
-also periodically reports the current entropy count of its internal buffer and of the kernel entropy pool.
+also periodically reports the current entropy count of its internal
+buffer and of the kernel entropy pool.
 
 .B entbuff
-will not extract entropy from the kernel entropy pool if its internal buffer is full.
+will not extract entropy from the kernel entropy pool if its internal
+buffer is full.
 
 Through all of this, a system running one or more copies of
 .B entbuff
-may be able to ride out brief period of high entropy demand, so long as entropy is available in excess much of the rest of the time. As an example, consider a system with an entropy source which will provide a few hundred bytes of entropy per second on a system which normally consumes only a few tens of bytes of entropy per second, but occasionally spikes have it consume a few thousand bytes of entropy per second. If
+may be able to ride out brief period of high entropy demand, so long
+as entropy is available in excess much of the rest of the time. As an
+example, consider a system with an entropy source which will provide a few
+hundred bytes of entropy per second on a system which normally consumes
+only a few tens of bytes of entropy per second, but occasionally spikes
+have it consume a few thousand bytes of entropy per second. If
 .B entbuff
-is running on such a system, it will help smooth out the spikes in entropy drain.
+is running on such a system, it will help smooth out the spikes in
+entropy drain.
 .SH OPTIONS
 .IP "-i, --high-thresh=BITS"
 .B entbuff
-will extract entropy from the kernel entropy pool only when the kernel entropy pool contains at least
+will extract entropy from the kernel entropy pool only when the kernel
+entropy pool contains at least
 .I BITS
 bits of entropy.
 .IP "-l, --low-thresh=BITS"
 .B entbuff
-will feed entropy form the kernel only if the kernel entropy pool containts fewer than
+will feed entropy form the kernel only if the kernel entropy pool
+containts fewer than
 .I BITS
 bits of entropy.
 .IP "-w, --wait=MICROSECONDS"
@@ -68,15 +81,18 @@ microseconds between polling the kernel entropy pool's entropy level.
 Use the file specified by
 .I PATH
 instead of the default file
-.I /dev/random .
+.IR /dev/random .
 .IP "-p, --print-period=MILLISECONDS"
 Wait
 .I MILLISECONDS
-milliseconds between reports of entropy counts for the kernel and the internal buffer.
+milliseconds between reports of entropy counts for the kernel and the
+internal buffer.
 .IP "-R, --log-reads"
-In code paths related to extracting entropy from the kernel, write debug traces to standard error.
+In code paths related to extracting entropy from the kernel, write debug
+traces to standard error.
 .IP "-W, --log-writes"
-In code paths related to inserting entropy into the kernel, write debug traces to standard error.
+In code paths related to inserting entropy into the kernel, write debug
+traces to standard error.
 .IP "-b, --buffer-size=BYTES"
 Set the internal buffer size to
 .I BYTES
@@ -93,28 +109,42 @@ will perform ioctls on, by default.
 No environment variables are paid particular attention by
 .BR entbuff (8) .
 .SH DIAGNOSTICS
-All diagnostic messages are printed to standard error. All are immediately followed by program termination.
+All diagnostic messages are printed to standard error. All are immediately
+followed by program termination.
 
-Only a few of errors should technically be even possible, assuming there are no bugs in
-.B entbuff
-, and if you see them, you should be able to resolve the problem locally using the advice given here:
+Only a few of errors should technically be even possible, assuming there
+are no bugs in
+.BR entbuff ,
+and if you see them, you should be able to resolve the problem locally
+using the advice given here:
 
 .RE
 EPERM error while adding entropy to kernel.
 .RS
 .B entbuff
-was not run with appropriate permissions to add entropy to the kernel's entropy pool. Run the program again with the correct permissions. Generally, root, though if the system is compiled to use fine-grained privileges, you need the CAPS_ADMIN capability. If the 'root' account doesn't have this privilege, check your security policy configurations and run
+was not run with appropriate permissions to add entropy to the
+kernel's entropy pool. Run the program again with the correct
+permissions. Generally, root, though if the system is compiled to use
+fine-grained privileges, you need the CAPS_ADMIN capability. If the
+'root' account doesn't have this privilege, check your security policy
+configurations and run
 .B entbuff
 as a user which has those capabilities.
 
 .RE
 Error: high threshold(%i) must be greater than low threshold(%i)
 .RS
-You passed in arguments for the high and/or low thresholds which conflict. The thresholds must be different, or
+You passed in arguments for the high and/or low thresholds which
+conflict. The thresholds must be different, or
 .B entbuff
-wouldn't have a range to operate within; short of discarding entropy, it tries as very hard to keep the system entropy level between those two points. If those two points are the same, then there's no "between" to target.
+wouldn't have a range to operate within; short of discarding entropy,
+it tries as very hard to keep the system entropy level between those
+two points. If those two points are the same, then there's no "between"
+to target.
 
-If you passed an argument for one, but not the other, try passing an argument for both; the culprit may be the default value for the threshold you didn't set.
+If you passed an argument for one, but not the other, try passing an
+argument for both; the culprit may be the default value for the threshold
+you didn't set.
 
 .RE
 Error: high threshold must be greater than 0.
@@ -127,9 +157,16 @@ Error: low threshold must be a multiple of eight.
 .RS
 Threshold settings must be greater than 0. A low threshold of 0 would mean
 .B entbuff
-itself would be constantly driving the system into entropy starvation, and a high threshold of 0 would mean the low and high thresholds would either have to be equal or inverted related to each other, and that carries its own problems. (See above)
+itself would be constantly driving the system into entropy starvation,
+and a high threshold of 0 would mean the low and high thresholds would
+either have to be equal or inverted related to each other, and that
+carries its own problems. (See above)
 
-Threshold settings must be multiples of 8 for internal reasons. The kernel's entropy pool is measured in bits, but it's far simpler for us to transfer and account for things in counts of bytes. So to reduce the potential for coding errors and user confusion, we require these values to be multiples of 8.
+Threshold settings must be multiples of 8 for internal reasons. The
+kernel's entropy pool is measured in bits, but it's far simpler for us
+to transfer and account for things in counts of bytes. So to reduce the
+potential for coding errors and user confusion, we require these values
+to be multiples of 8.
 
 .RE
 Error: wait time must be greater than 0.
@@ -137,22 +174,25 @@ Error: wait time must be greater than 0.
 Error: print period must be greater than 0.
 .RS
 Since these values affect how long
-.B entbuff
-'s internal loops sleep, they must be greater than 0. If they were allowed to be 0, 
+.BR entbuff 's
+internal loops sleep, they must be greater than 0. If they were allowed to be 0,
 .B entbuff
 would peg a CPU.
 
 .RE
 Error: buffer size must be greater than 0.
 .RS
-Entbuff's internal buffer size must be greater than zero, or it's not able to buffer any entropy. If you only want to monitor the kernel's entropy level, use
-.B entwatch (1)
+.BR entbuff 's
+internal buffer size must be greater than zero, or it's not able to buffer
+any entropy. If you only want to monitor the kernel's entropy level, use
+.BR entwatch (1)
 instead.
 
 .RE
 Failed to allocate memory for entropy buffer
 .RS
-The most likely cause for this error is that you requested a larger buffer than there is available RAM to service. Use the
+The most likely cause for this error is that you requested a larger
+buffer than there is available RAM to service. Use the
 .B -b
 parameter to request a smaller buffer.
 
@@ -162,15 +202,24 @@ Unable to open %s for r/w: %s
 This error will be hit when
 .B entbuff
 attempts to open the random file (either the default
-.I /dev/random
-, or the file directed on the command line), and fails. The cause will be included; it will most likely be either a permissions issue or a "file not found" circumstance.
+.IR /dev/random ,
+or the file directed on the command line), and fails. The cause will
+be included; it will most likely be either a permissions issue or a
+"file not found" circumstance.
 
 .SH FAILURES
-The following errors should not happen unless there is something critically wrong, such as compiling with the wrong version of kernel headers available, compiling with a compiler incompatible with the kernel, corruption of the program, or simply some absolutely critical bug.
+The following errors should not happen unless there is something
+critically wrong, such as compiling with the wrong version of kernel
+headers available, compiling with a compiler incompatible with the kernel,
+corruption of the program, or simply some absolutely critical bug.
 
-Please notify the authors if you see any of these errors. Include what's known about the compiler used to build the program, the compiler used to build the kernel, the version of
-.B entbuff
-, the version of the kernel, the version of the kernel headers built against, the version of the system libc and anything known about the build environment.
+Please notify the authors if you see any of these errors. Include what's
+known about the compiler used to build the program, the compiler used
+to build the kernel, the version of
+.BR entbuff ,
+the version of the kernel, the version of the kernel headers built
+against, the version of the system libc and anything known about the
+build environment.
 
 Including the binary itself would be helpful, too.
 
@@ -215,13 +264,13 @@ Error with ioctl call: %s
 .SH BUGS
 The error messages can be made more consistent with each other.
 
-We could test for the ability to add entropy to the entropy pool before extract an appreciable amount.
+We could test for the ability to add entropy to the entropy pool before
+extract an appreciable amount.
 
 .SH AUTHOR
 Michael Mol <mikemol at gmail dot com>
 
 (And more; see AUTHORS file)
 .SH "SEE ALSO"
-.BR entwatch (1)
+.BR entwatch (1),
 .BR /usr/src/linux/drivers/char/random.c
-
