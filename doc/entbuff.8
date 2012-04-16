@@ -108,11 +108,6 @@ was not run with appropriate permissions to add entropy to the kernel's entropy 
 as a user which has those capabilities.
 
 .RE
-Error writing to random device
-.RS
-The program was not written with write permissions to the random device file. Run the program again with the correct permissions. (Generally, root.)
-
-.RE
 Error: high threshold(%i) must be greater than low threshold(%i)
 .RS
 You passed in arguments for the high and/or low thresholds which conflict. The thresholds must be different, or
@@ -222,11 +217,6 @@ The error messages can be made more consistent with each other.
 
 We could test for the ability to add entropy to the entropy pool before extract an appreciable amount.
 
-We're currently using
-.B ioctl (2)
-to add entropy, and then subsequently attempting to use
-.B fwrite (3)
-to do the same. This is an artifact of insufficient code cleanup after adding the ioctl() call. The fwrite should no longer be there. Likewise, neither should any logs or errors dependent on it.
 .SH AUTHOR
 Michael Mol <mikemol at gmail dot com>
 

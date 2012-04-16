@@ -166,23 +166,12 @@ size_t buffer_to_rand_internal(const int to_transfer)
 		break;
 	}
 	
-	size_t written = fwrite(entbuff + buff_read_pos, 1, to_transfer, fdRandom);
-
-	if(0 == written)
-	{
-		if(ferror(fdRandom))
-		{
-			perror("Error writing to random device");
-			abort();
-		}
-	}
-
 	if(g_log_buffer_to_rand)
 	{
-		fprintf(stderr, "-W: Write. written(%zu) = buff_read_pos(%d), to_transfer(%d)\n", written, buff_read_pos, to_transfer);
+		fprintf(stderr, "-W: Write. buff_read_pos(%d), to_transfer(%d)\n", buff_read_pos, to_transfer);
 	}
 
-	buff_read_pos += written;
+	buff_read_pos += to_transfer;
 	if(g_log_buffer_to_rand)
 	{
 		fprintf(stderr,"-W: New buff_read_pos(%d)\n", buff_read_pos);
@@ -193,7 +182,7 @@ size_t buffer_to_rand_internal(const int to_transfer)
 		fprintf(stderr, "Internal error: READ past end of buffer!\n");
 		abort();
 	}
-	return written;
+	return to_transfer;
 }
 
 size_t buffer_to_rand(const size_t to_transfer)
