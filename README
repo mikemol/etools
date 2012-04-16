@@ -27,7 +27,7 @@ Entropy is a quantity or measure of randomness. You could think of it as some se
 
 To some extent, sure. Different Pseudo-Random Number Generators (PRNGs). For some use cases, certainly; some scientific uses like the reproducable nature of PRNGs. For other cases, such as cryptography, a reproduceable random-number generator is harmful.
 
-Yes, there is hardware for generating random numbers. It's typically either expensive, inconvenient, uncommon or some combination of the three. In the expensive category are expansion cards which can cost a couple thousand dollard. In the inconvenient category sits things like USB HRNGs; it's rather difficult to plug a USB device into a rented virtual machine in a data center a few thousand miles away. In the uncommon category are things like specialized CPU instructions; Intel's Bull Mountain RDRAND instruction is part of the not-yet-available Ivy Bridge core, and it's extraordinarily doubtful that that CPU instruction will be available to the majority of virtual machines within a decade.
+Yes, there is hardware for generating random numbers. It's typically either expensive, inconvenient, uncommon or some combination of the three. In the expensive category are expansion cards which can cost a couple thousand dollars. In the inconvenient category sits things like USB HRNGs; it's rather difficult to plug a USB device into a rented virtual machine in a data center a few thousand miles away. In the uncommon category are things like specialized CPU instructions; Intel's Bull Mountain RDRAND instruction is part of the not-yet-available Ivy Bridge core, and it's extraordinarily doubtful that that CPU instruction will be available to the majority of virtual machines within a decade.
 
 *** 1.3. Entropy pool?
 
@@ -68,6 +68,8 @@ The entmesh set of programs hasn't been written yet. It's intended to be a modul
 *** 1.7. You're wrong!
 
 If I'm wrong, I'd be happy to hear it. Drop me (Mike Mol) a line; my email address is in the AUTHORS file. I'll be happy to discuss or correct any errors. (Or send me a pull request with bugfixes; I'm interested in those, too.)
+
+etools also has an IRC channel: #etools on Freenode. See http://freenode.net/using_the_network.shtml for details.
 
 ** 2. List of programs
 
