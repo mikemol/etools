@@ -1,0 +1,68 @@
+Pre-release (minor version bumps)
+
+* Verify each manpage is thorough and consistent with the program it describes.
+** entwatch.1
+** entmesh.8
+** Verify that all manpages are represented in this sublist.
+
+* Verify AUTHORS file is up-to-date
+
+* Verify programs install to their intended destinations
+** entwatch should land in bin
+** entbuff should land in sbin
+** Verify that all programs are represented in this sublist.
+
+* Review README to ensure each section is correct.
+** Correct any outdated information, elaborate or add on to questions and FAQ
+pieces. Add external references.
+** Spellcheck
+** Verify external hyperlinks are still valid.
+
+* Test programs
+** entwatch
+*** Verify "-w" behaves as described.
+*** Verify "-r" works as described. (Find some way to make /dev/random
+inaccessible to program, and set up second device node to work on)
+*** Verify "-h" output is correct:
+**** Presents program usage
+**** Lists every parameter, along with each parameter's usage and meaning.
+*** Verify santity checks for each command-line parameter:
+**** -r file must exist and be readable.
+**** -w must be an integer greater than 0.
+**** Verify this sublist is complete and correct.
+*** Verify this sublist is complete and correct.
+** entbuff
+*** Verify "-i" and "-l" behave as described.
+*** Verify "-w" and "-p" behave as described.
+*** Verify "-r" works as described. (Find some way to make /dev/random
+inaccessible to program, and set up second device node to work on)
+*** Verify -R logs read-from-rand trace points, and only read-from-rand trace
+points.
+*** Verify -W logs write-to-rand trace points, and only write-to-rand trace
+points.
+*** Verify -b controls the buffer size as described.
+*** Verify -h output is correct:
+**** Presents program usage
+**** Lists every parameter, along with each parameter's usage and meaning.
+*** Verify sanity checks for each command-line parameter:
+**** Verify that -i and -l only accept integer multiples of 8 greater than 0.
+**** Verify that -w and -p only accept integers greater than 0.
+**** Verify that -r must exist, be readable, and must allow data to be added to the
+entropy pool.
+**** Verify that -b must be an integer greater than 0.
+**** Verify that this sublist is correct.
+*** Verify that this sublist is correct.
+
+Pre-release (major version bumps)
+* Check that programs behave consistently with one another. Familiarity with
+behavior in one program or option must translate to familiarity with analogous
+behavior in another program where present, or must be clearly noted in the
+manpage.
+* Also, pre-release (minor version bumps)
+
+Pre-commit reminders:
+* Check that the program still builds.
+* Check that the code can be tested. Write the test(s)
+
+Pre-merge reminders:
+* Check that the programs pass your tests.
