@@ -53,12 +53,17 @@ entropy pool.
 **** Verify that this sublist is correct.
 *** Verify that this sublist is correct.
 
+* Repeat this list until no changes are necessary; responding to one item may
+have invalidated another.
+
 Pre-release (major version bumps)
 * Check that programs behave consistently with one another. Familiarity with
 behavior in one program or option must translate to familiarity with analogous
 behavior in another program where present, or must be clearly noted in the
 manpage.
 * Also, pre-release (minor version bumps)
+* Repeat this list until no changes are necessary; responding to one item may
+have invalidated another.
 
 Pre-commit reminders:
 * Check that the program still builds.
