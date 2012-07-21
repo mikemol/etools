@@ -322,7 +322,7 @@ size_t rand_to_buffer(size_t to_transfer)
 void print_usage(int argc, char* argv[])
 {
     const char usage[] =
-        "Usage: %s [OPTION]\n"
+        "Usage: %s [OPTIONS]\n"
         "Acts as an entropy reservoir tied into the Linux kernel's entropy pool.\n"
         "\n"
         "Mandatory arguments for long options are mandatory for short options, too.\n"
