@@ -35,7 +35,7 @@ void free_entropy_buffer()
     }
     else
     {
-        fprintf(stderr, "Logic error: free_entropy_buffer called on NULL entropy buffer.\n");
+        fprintf(stderr, "BUG: free_entropy_buffer called on NULL entropy buffer.\n");
     }
 }
 
@@ -52,7 +52,7 @@ void close_fdRandom()
     }
     else
     {
-        fprintf(stderr, "Logic error: Random device fd null\n");
+        fprintf(stderr, "BUG: Random device fd null\n");
     }
 }
 
@@ -60,7 +60,7 @@ int check_ent()
 {
     if(NULL == fdRandom)
     {
-        fprintf(stderr, "Logic error: Random device fd null\n");
+        fprintf(stderr, "BUG: Random device fd null\n");
         abort();
     }
 
@@ -89,7 +89,7 @@ size_t get_read_remaining()
         return (size_t) remaining;
 
     // Logic error! There's no valid case where this should happen.
-    fprintf(stderr, "Internal error in buffer memory management!\n");
+    fprintf(stderr, "BUG: Missed case in buffer accounting!\n");
     abort();
     // Execution does not pass abort()
 }
@@ -111,14 +111,14 @@ size_t buffer_to_rand_internal(const int to_transfer)
         }
         else
         {
-            fprintf(stderr, "Logic error: read pos exceeded end of buffer!\n");
+            fprintf(stderr, "BUG: Read pos already outside buffer!\n");
             abort();
         }
     }
 
     if((buff_read_pos + to_transfer) > buff_size)
     {
-        fprintf(stderr, "Internal error: Would read past end of buffer!\n");
+        fprintf(stderr, "BUG: Would read outside buffer!\n");
         abort();
     }
 
@@ -179,7 +179,7 @@ size_t buffer_to_rand_internal(const int to_transfer)
 
     if(buff_read_pos > buff_size)
     {
-        fprintf(stderr, "Internal error: READ past end of buffer!\n");
+        fprintf(stderr, "BUG: Read pos reached past end of buffer!\n");
         abort();
     }
     return to_transfer;
@@ -248,14 +248,14 @@ size_t rand_to_buffer_internal(size_t to_transfer)
         }
         else
         {
-            fprintf(stderr, "Logic error: write pos exceeded end of buffer!\n");
+            fprintf(stderr, "BUG: write pos already past end of buffer!\n");
             abort();
         }
     }
     
     if((buff_write_pos + to_transfer) > buff_size)
     {
-        fprintf(stderr, "Logic error: Would write past end of buffer!\n");
+        fprintf(stderr, "BUG: Write would overflow buffer!\n");
         abort();
     }
 
@@ -268,7 +268,7 @@ size_t rand_to_buffer_internal(size_t to_transfer)
     buff_write_pos += bytes_written;
     if(buff_write_pos > buff_size)
     {
-        fprintf(stderr, "Logic error: WROTE past end of buffer!\n");
+        fprintf(stderr, "BUG: OVERFLOWED BUFFER!\n");
         abort();
     }
 
@@ -370,7 +370,7 @@ double timespec_to_double(const struct timespec* t)
 {
     if(NULL == t)
     {
-        fprintf(stderr, "Logic error: timespec pointer NULL.\n");
+        fprintf(stderr, "BUG: timespec pointer NULL.\n");
         abort();
     }
     // double is good for integers up to about 2^56. At nsec precision,
