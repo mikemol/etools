@@ -21,10 +21,13 @@ void print_usage(int argc, char* argv[])
         "\n"
         "Mandatory arguments for long options are mandatory for short "
             "options, too.\n"
+        "\n"
         "    -w, --wait=SECONDS     How long to wait between polls of the\n"
         "                           kernel entropy level.\n"
+        "\n"
         "    -r, --rand-path=PATH   Path to random device. (Typically\n"
         "                           /dev/random)\n"
+        "\n"
         "    -h, --help             This help message\n";
 
     fprintf(stderr, usage, argv[0]);
