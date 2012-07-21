@@ -16,7 +16,7 @@ int looping = 1;
 void print_usage(int argc, char* argv[])
 {
     const char usage[] =
-        "Usage: %s [OPTION]\n"
+        "Usage: %s [OPTIONS]\n"
         "Polls the kernel entropy pool and prints the results.\n"
         "\n"
         "Mandatory arguments for long options are mandatory for short "
