@@ -46,7 +46,7 @@ void close_fdRandom()
         int res = fclose(fdRandom);
         if(0 != res)
         {
-            perror("Error closing random device");
+            perror("Error: Failure closing random device");
             abort();
         }
     }
@@ -68,7 +68,7 @@ int check_ent()
     int entcnt;
     int r = ioctl(fNo, RNDGETENTCNT, &entcnt);
     if(0 > r) {
-        fprintf(stderr, "Error with ioctl call: %s\n", strerror(errno));
+        fprintf(stderr, "Error: Failed ioctl call: %s\n", strerror(errno));
         return -1;
     }
 
@@ -138,7 +138,7 @@ size_t buffer_to_rand_internal(const int to_transfer)
 
     if(-1 == fileNo)
     {
-        perror("Unexpected failure while preparing to feed entropy to kernel\n");
+        perror("Error: Unexpected failure while preparing to feed entropy to kernel\n");
     }
 
     const int ioRes = ioctl(fileNo, RNDADDENTROPY, &entropy);
@@ -149,19 +149,19 @@ size_t buffer_to_rand_internal(const int to_transfer)
         // Good.
         break;
     case -EFAULT:
-        fprintf(stderr, "EFAULT error while adding entropy to kernel.");
+        fprintf(stderr, "Error: EFAULT error while adding entropy to kernel.");
         abort();
         break;
     case -EPERM:
-        fprintf(stderr, "EPERM error while adding entropy to kernel.");
+        fprintf(stderr, "Error: EPERM error while adding entropy to kernel.");
         abort();
         break;
     case -EINVAL:
-        fprintf(stderr, "EINVAL error while adding entropy to kernel.");
+        fprintf(stderr, "Error: EINVAL error while adding entropy to kernel.");
         abort();
         break;
     default:
-        fprintf(stderr, "Unknown error while adding entropy to kernel.");
+        fprintf(stderr, "Error: Unknown error while adding entropy to kernel.");
         abort();
         break;
     }
@@ -248,7 +248,7 @@ size_t rand_to_buffer_internal(size_t to_transfer)
         }
         else
         {
-            fprintf(stderr, "BUG: write pos already past end of buffer!\n");
+            fprintf(stderr, "BUG: Write pos already past end of buffer!\n");
             abort();
         }
     }
@@ -428,7 +428,7 @@ void entropy_watch_loop(const struct timespec* waittime, const struct timespec* 
         int sres = nanosleep(waittime, &wait_remainder);
         if(0 != sres)
         {
-            perror("Sleep interrupted");
+            perror("Error: Sleep interrupted");
             abort();
         }
         
@@ -620,7 +620,7 @@ int main(int argc, char* argv[])
     entbuff = malloc(buff_size);
     if(NULL == entbuff)
     {
-        perror("Failed to allocate memory for entropy buffer\n");
+        perror("Error: Failed to allocate memory for entropy buffer\n");
         return 1;
     }
 
@@ -633,7 +633,7 @@ int main(int argc, char* argv[])
     fdRandom = fopen(rand_path, "a+");
     if(0 == fdRandom)
     {
-        fprintf(stderr, "Unable to open %s for r/w: %s\n", rand_path, strerror(errno));
+        fprintf(stderr, "Error: Unable to open %s for r/w: %s\n", rand_path, strerror(errno));
         return 1;
     }
 

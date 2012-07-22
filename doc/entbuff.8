@@ -119,7 +119,7 @@ and if you see them, you should be able to resolve the problem locally
 using the advice given here:
 
 .RE
-EPERM error while adding entropy to kernel.
+Error: EPERM error while adding entropy to kernel.
 .RS
 .B entbuff
 was not run with appropriate permissions to add entropy to the
@@ -189,7 +189,7 @@ any entropy. If you only want to monitor the kernel's entropy level, use
 instead.
 
 .RE
-Failed to allocate memory for entropy buffer
+Error: Failed to allocate memory for entropy buffer
 .RS
 The most likely cause for this error is that you requested a larger
 buffer than there is available RAM to service. Use the
@@ -197,7 +197,7 @@ buffer than there is available RAM to service. Use the
 parameter to request a smaller buffer.
 
 .RE
-Unable to open %s for r/w: %s
+Error: Unable to open %s for r/w: %s
 .RS
 This error will be hit when
 .B entbuff
@@ -224,48 +224,47 @@ build environment.
 Including the binary itself would be helpful, too.
 
 .RE
-EINVAL error while adding entropy to kernel.
+Error: EINVAL error while adding entropy to kernel.
 .RE
-EFAULT error while adding entropy to kernel.
+Error: EFAULT error while adding entropy to kernel.
 .RE
-Error closing random device
+Error: Failure closing random device
 .RE
-Unexpected failure while preparing to feed entropy to kernel
+Error: Unexpected failure while preparing to feed entropy to kernel
 .RE
-Sleep interrupted
+Error: Sleep interrupted
 .RE
 Warning: failed to register free_entropy_buffer with atexit()
 .RE
 Warning: failed to register close_fdRandom with atexit()
 .RE
-Logic error: timespec pointer NULL.
+BUG: timespec pointer NULL.
 .RE
-Logic error: WROTE past end of buffer!
+BUG: OVERFLOWED BUFFER!
 .RE
-Logic error: Would write past end of buffer!
+BUG: Write would overflow buffer!
 .RE
-Logic error: write pos exceeded end of buffer!
+BUG: Write pos already past end of buffer!
 .RE
-Logic error: Random device fd null
+BUG: Random device fd null
 .RE
-Logic error: free_entropy_buffer called on NULL entropy buffer.
+BUG: free_entropy_buffer called on NULL entropy buffer.
 .RE
-Internal error: Would read past end of buffer!
+BUG: Would read outside buffer!
 .RE
-Logic error: read pos exceeded end of buffer!
+BUG: Read pos already outside buffer!
 .RE
-Internal error: READ past end of buffer!
+BUG: Read pos reached past end of buffer!
 .RE
-Unknown error while adding entropy to kernel.
+BUG: Missed case in buffer accounting!
 .RE
-Internal error in buffer memory management!
+Error: Unknown error while adding entropy to kernel.
 .RE
-Error with ioctl call: %s
+Error: Failed ioctl call: %s
 .SH BUGS
-The error messages can be made more consistent with each other.
 
 We could test for the ability to add entropy to the entropy pool before
-extract an appreciable amount.
+extracting an appreciable amount.
 
 .SH AUTHOR
 Michael Mol <mikemol at gmail dot com>
