@@ -2,80 +2,88 @@ The idea behind entmesh: To allow entropy to move from where it's abundant to
 where it's needed within a network of computers.
 
 Terms:
-* Tank: A node where entropy is stored. Examples include the kernel entropy
+* HRNG: Hardware Random Number Generator. Used somewhat interchangeably with
+  TRNG in this document.
+* TRNG: True Random Number Generator. Used somewhat interchangeably with HRNG
+  in this document.
+* Node: The base logical device in the connection graph.
+* Tank: A Node where entropy is stored. Examples include the kernel entropy
   pool, as well as userland buffers.
-* Source: A node where entropy is generated. Examples include the kernel's own
+* Fill Level: How full a Tank is.
+* Source: A Node where entropy is generated. Examples include the kernel's own
   attempts at generating entropy, as well as hardware TRNGs, haveged, etc.
-  This is abstracted as a tank which is always full.
-* Peer: A node connected to another node.
+  This is abstracted as a Tank which is always full.
+* Connection: A bidirectional data path between two Nodes. Connections are
+  initialized, utilized and terminated, in that order. Connections carry all
+  explicit messages, including Fill Level Notifications and Entropy Transfers.
+* Peer: A Node connected to this Node.
 
 Peer relationships:
-* When two nodes are connected to each other, they have a relationship as
-  peers.
-* Each node in a peer relationship may choose whether or not it will send or
-  receive data from its peer. This has a logical basis in that a hardware TRNG
-  cannot receive data, and it has a security basis in that we may not trust
-  the quality of entropy from a peer, even though we may wish to provide it
-  with entropy.
-* Peers may notify each other about their current entropy level. Such
-  notifications carry implicit flow control requests; if a node notifies its
-  peer that it's starving for entropy, it's implicitly requesting that its
-  peer send it entropy.
-
-Signaling events:
-* Entropy Transfer Request: When a node requests that its peer send it
+* When two Nodes are connected to each other, they have a relationship as
+  Peers.
+* Each Node in a Peer relationship may choose whether or not it will send or
+  receive data from its Peer. This has a logical basis in that an HRNG cannot	
+  receive data, and it has a security basis in that we may not trust the
+  quality of entropy from a Peer, even though we may wish to provide it with
   entropy.
-* State Notificaton: When a node informs its peer of its current state.
+* Peers may notify each other about their current entropy level. Such
+  notifications carry implicit flow control requests; if a Node notifies its
+  Peer that it's starving for entropy, it's implicitly requesting that its
+  Peer send it entropy.
 
-Tank levels, notifications and responses:
+Events:
+* Fill Level Notificaton: When a Node informs its Peer of its current Fill
+  Level.
+* Entropy Transfer Request: When a Node requests that its Peer send it
+  entropy. This event is detected by the receiving Node of a Fill Level
+  Notification, determined by comparing the receiver's Fill Level with the
+  that received.
+* Entropy Transfer: When one Node sends entropy to another Node.
 
-+---------------------+----------------------------+
-|        STATES       |                            |
-+----------+----------+ Implicit Transfer Requests |
-|  Node A  |  Node B  |                            |
-+----------+----------+----------------------------+
-|   GOOD   |   GOOD   | None                       |
-+----------+----------+----------------------------+
-|   GOOD   |    OK    | None                       |
-+----------+----------+----------------------------+
-|   GOOD   |    LOW   | B requests entropy from A. |
-+----------+----------+----------------------------+
-|   GOOD   | CRITICAL | B requests entropy from A. |
-+----------+----------+----------------------------+
-|    OK    |   GOOD   | None                       |
-+----------+----------+----------------------------+
-|    OK    |    LOW   | B requests entropy from A. |
-+----------+----------+----------------------------+
-|    OK    | CRITICAL | B requests entropy from A. |
-+----------+----------+----------------------------+
-|    LOW   |    LOW   | None                       |
-+----------+----------+----------------------------+
-|    LOW   | CRITICAL | None                       |
-+----------+----------+----------------------------+
-| CRITICAL | CRITICAL | None                       |
-+----------+----------+----------------------------+
+Tank levels, notifications and responses
 
-What exactly corresponds to GOOD, OK, LOW or CRITICAL depends on the tank
-abstraction implementation.
+For two Connected Nodes, A and B, with each other as Peers:
 
-It is an error for a node to transmit the same state twice; if it is already
-known to be in the GOOD state, and it announces again that it is in the GOOD
-state, it is in error, and the peering should be terminated.
+* If Node A's Fill Level is the same as Node B's Fill Level, then there is no
+  Entropy Transfer Request.
+* If Node A's Fill Level is Significantly higher than node B's Fill Level,
+  then node B has implicitly sent an Entropy Transfer Request to Node A.
+* If Node B's Fill Level is Significantly higher than node A's Fill Level,
+  then Node A has implicitly sent an Entropy Transfer Request to Node B.
 
-A node which receives an entropy transfer request is not required to send
-entropy in response.
+How a Node's Fill Level is communicated between nodes is an implementation
+detail of the Connection between Nodes. Example communication means include
+percentages, fractions and enumerated states (i.e. GOOD, OK, LOW, CRITICAL).
 
-A node which receives a state update from its peer may discover that its peer
-is at a lower state than itself. It MUST treat this as an implicit entropy
-transfer request. If its peer is two or more steps lower, it SHOULD service
-the request.
+It is an error for a Node to transmit the same Fill Level twice. If Node A knows
+Node B is at Fill Level S, then if Node A receives a Fill Level Notification
+from B indicating B is at Fill Level S, then A has clearly received a duplicate
+notification, and the connection should be terminated.
+
+A Node which receives an Entropy Transfer Request is not required to send
+entropy in response, even though this is the implicit purpose of the request.
+
+A Node which receives a Fill Level Notification from its Peer may discover that
+its Peer is at a lower Fill Level than itself. It MUST treat this as an
+implicit entropy transfer request. If its Peer is two or more steps lower, it
+SHOULD service the request by sending an Entropy Transfer.
+
+When an Entropy Transfer occurs, one Tank removes entropy from itself and
+sends it across its Connection to another Tank, which MAY add that entropy to
+itself. The sending Tank SHOULD continue sending entropy until there is no
+longer an outstanding Entropy Transfer Request. (I.e. once a Fill Level
+Notification is received that indicates the recipient of the Entropy Transfer
+has achieved a similar Fill Level to that of the sender.) The sending Tank MUST
+NOT send the same entropy more than once to the same Node, and the sending Tank
+MUST NOT send the same entropy to more than one Node. It is recognized and
+accepted that entropy may be lost, discarded or wasted as a consequence.
 
 
 Offers, acceptence, sending and ceasing:
 Example topologies:
 
-K = Kernel entropy pool, abstracted as a tank.
-M = Memory FIFO entropy buffer, abstracted as a tank.
+K = Kernel entropy pool, abstracted as a Tank Node.
+M = Memory FIFO entropy buffer, abstracted as a Tank Node.
 
 Single-host, no external entropy source:
 K<->M
@@ -83,11 +91,11 @@ K<->M
 * M Trusts K
 
 In this example, some internal abstraction driver describes the kernel entropy
-pool as a tank, monitors its level, handles state announcements and
-pushing/pulling of data. Since the kernel entropy pool only stores a very,
-very small amount of entropy (512 bytes), having a separate M tank can be
-beneficial; it allows us to save off any excess entropy generated that
-wouldn't otherwise have fit in K. When K runs low, entropy is moved from M
+pool as a Tank, monitors its level, handles Fill Level announcements and
+Entropy Transfers. Since the kernel entropy pool only stores a very,
+very small amount of entropy (512 bytes), having a separate M Tank can be
+beneficial; it allows us to save off any excess entropy generated or received
+that wouldn't otherwise have fit in K. When K runs low, entropy is moved from M
 back into K.
 
 Two hosts, equally trusted:
@@ -101,7 +109,7 @@ K1 <-> M1 <-> M2 <-> K2
 * M1 and M2 trust each other.
 
 In this example, the Linux kernel for host 1 will attempt to fill K1, and the kernel for
-host 2 will likewise fill K2. K1 and M2 will attempt to keep each other
+host 2 will likewise fill K2. K1 and M1 will attempt to keep each other
 filled, K2 and M2 will attempt to keep each other filled, and M1 and M2 will
 attempt to keep each other filled.
 
@@ -120,8 +128,8 @@ entropy from host 2, but does want to keep host 2 supplied with entropy.
 
 K1 <-> M1 -> M2 <-> K2
 
-Here, if M1 runs LOW, it will announce its LOW state to K1, which will fill
-it. It will *not* announce its LOW state to M2.
+If M1 sends K1 a Fill Level announcement, and K1 sees that M1 has a lower Fill
+Level than K1 has, K1 will initiate an Entropy Transfer to try to fill M1.
 
 Client/Server entropy cluster:
 
@@ -138,3 +146,4 @@ trusted by anyone but their hosts' kernels, and it's M3's job to keep them
 supplied with entropy.
 
 (This is how I see entmesh being useful in VM cluster environments.)
+
