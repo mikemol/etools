@@ -41,47 +41,51 @@ Events:
   that received.
 * Entropy Transfer: When one Node sends entropy to another Node.
 
-Tank levels, notifications and responses
+Fill Levels:
 
 For two Connected Nodes, A and B, with each other as Peers:
 
 * If Node A's Fill Level is the same as Node B's Fill Level, then there is no
   Entropy Transfer Request.
-* If Node A's Fill Level is Significantly higher than node B's Fill Level,
-  then node B has implicitly sent an Entropy Transfer Request to Node A.
-* If Node B's Fill Level is Significantly higher than node A's Fill Level,
+* If Node A's Fill Level is Significantly higher than Node B's Fill Level,
+  then Node B has implicitly sent an Entropy Transfer Request to Node A.
+* If Node B's Fill Level is Significantly higher than Node A's Fill Level,
   then Node A has implicitly sent an Entropy Transfer Request to Node B.
 
-How a Node's Fill Level is communicated between nodes is an implementation
+How a Fill Level Notification is sent between Nodes is an implementation
 detail of the Connection between Nodes. Example communication means include
 percentages, fractions and enumerated states (i.e. GOOD, OK, LOW, CRITICAL).
 
-It is an error for a Node to transmit the same Fill Level twice. If Node A
-knows Node B is at Fill Level S, then if Node A receives a Fill Level
-Notification from B indicating B is at Fill Level S, then A has clearly
-received a duplicate notification, and the connection should be terminated.
+It is an error for a Node to transmit the same Fill Level Notification
+consecutively on the same Connection. If Node A knows Node B is at Fill Level
+S, then if Node A receives a Fill Level Notification from B indicating B is at
+Fill Level S, then A has clearly received a duplicate notification, and the
+connection should be terminated.
 
-A Node which receives an Entropy Transfer Request is not required to send
-entropy in response, even though this is the implicit purpose of the request.
-
-A Node which receives a Fill Level Notification from its Peer may discover that
-its Peer is at a lower Fill Level than itself. It MUST treat this as an
-implicit entropy transfer request. If its Peer is two or more steps lower, it
-SHOULD service the request by sending an Entropy Transfer.
+Entropy Transfers:
 
 When an Entropy Transfer occurs, one Tank removes entropy from itself and
 sends it across its Connection to another Tank, which MAY add that entropy to
 itself. The sending Tank SHOULD continue sending entropy until there is no
-longer an outstanding Entropy Transfer Request. (I.e. once a Fill Level
-Notification is received that indicates the recipient of the Entropy Transfer
-has achieved a similar Fill Level to that of the sender.) The sending Tank MUST
+longer an outstanding Entropy Transfer Request. The sending Tank MUST
 NOT send the same entropy more than once to the same Node, and the sending Tank
 MUST NOT send the same entropy to more than one Node. It is recognized and
 accepted that entropy may be lost, discarded or wasted as a consequence.
 
+Entropy Transfer Requests:
 
-Offers, acceptence, sending and ceasing:
-Example topologies:
+Entropy Transfer Requests are virtual in nature, meaning they are not sent
+explicitly. Instead, they are detected by the Node receiving the Fill Level
+Notification by comparing the announced Fill Level with the receiving Node's
+own Fill Level, and determining if they are Significantly different. This
+determination is implementation-defined. Entropy Transfer Requests can only be
+terminated by the this same Node's determining that the two Node's Fill Levels
+are no longer Significantly different.
+
+A Node which receives an Entropy Transfer Request SHOULD initiate an Entropy
+Transfer in response.
+
+Examples:
 
 K = Kernel entropy pool, abstracted as a Tank Node.
 M = Memory FIFO entropy buffer, abstracted as a Tank Node.
