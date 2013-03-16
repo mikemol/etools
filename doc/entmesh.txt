@@ -10,8 +10,9 @@ Terms:
 * Tank: A Node where entropy is stored. Examples include the kernel entropy
   pool, as well as userland buffers.
 * Fill Level: How full a Tank is.
-* Source: A Node where entropy is generated. Examples include the kernel's own
-  attempts at generating entropy, as well as hardware TRNGs, haveged, etc.
+* Source: A Node where entropy is generated.
+* Examples include the kernel's own attempts at generating entropy, as well as
+  hardware TRNGs, haveged, etc.
   This is abstracted as a Tank which is always full.
 * Connection: A bidirectional data path between two Nodes. Connections are
   initialized, utilized and terminated, in that order. Connections carry all
@@ -22,7 +23,7 @@ Peer relationships:
 * When two Nodes are connected to each other, they have a relationship as
   Peers.
 * Each Node in a Peer relationship may choose whether or not it will send or
-  receive data from its Peer. This has a logical basis in that an HRNG cannot	
+  receive data from its Peer. This has a logical basis in that an HRNG cannot
   receive data, and it has a security basis in that we may not trust the
   quality of entropy from a Peer, even though we may wish to provide it with
   entropy.
@@ -55,10 +56,10 @@ How a Node's Fill Level is communicated between nodes is an implementation
 detail of the Connection between Nodes. Example communication means include
 percentages, fractions and enumerated states (i.e. GOOD, OK, LOW, CRITICAL).
 
-It is an error for a Node to transmit the same Fill Level twice. If Node A knows
-Node B is at Fill Level S, then if Node A receives a Fill Level Notification
-from B indicating B is at Fill Level S, then A has clearly received a duplicate
-notification, and the connection should be terminated.
+It is an error for a Node to transmit the same Fill Level twice. If Node A
+knows Node B is at Fill Level S, then if Node A receives a Fill Level
+Notification from B indicating B is at Fill Level S, then A has clearly
+received a duplicate notification, and the connection should be terminated.
 
 A Node which receives an Entropy Transfer Request is not required to send
 entropy in response, even though this is the implicit purpose of the request.
@@ -92,11 +93,11 @@ K<->M
 
 In this example, some internal abstraction driver describes the kernel entropy
 pool as a Tank, monitors its level, handles Fill Level announcements and
-Entropy Transfers. Since the kernel entropy pool only stores a very,
-very small amount of entropy (512 bytes), having a separate M Tank can be
+Entropy Transfers. Since the kernel entropy pool only stores a very, very
+small amount of entropy (512 bytes), having a separate M Tank can be
 beneficial; it allows us to save off any excess entropy generated or received
-that wouldn't otherwise have fit in K. When K runs low, entropy is moved from M
-back into K.
+that wouldn't otherwise have fit in K. When K runs low, entropy is moved from
+M back into K.
 
 Two hosts, equally trusted:
 
@@ -108,10 +109,10 @@ K1 <-> M1 <-> M2 <-> K2
 * K2 and M2 trust each other.
 * M1 and M2 trust each other.
 
-In this example, the Linux kernel for host 1 will attempt to fill K1, and the kernel for
-host 2 will likewise fill K2. K1 and M1 will attempt to keep each other
-filled, K2 and M2 will attempt to keep each other filled, and M1 and M2 will
-attempt to keep each other filled.
+In this example, the Linux kernel for host 1 will attempt to fill K1, and the
+kernel for host 2 will likewise fill K2. K1 and M1 will attempt to keep each
+other filled, K2 and M2 will attempt to keep each other filled, and M1 and M2
+will attempt to keep each other filled.
 
 So, if K2 runs dry, draining M2, then M1 will feed into M2, which will feed
 into K2. If M1 runs dry, K1 will attempt to fill it.
