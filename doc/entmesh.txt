@@ -6,84 +6,191 @@ Terms:
   TRNG in this document.
 * TRNG: True Random Number Generator. Used somewhat interchangeably with HRNG
   in this document.
-* Node: The base logical device in the connection graph.
-* Tank: A Node where entropy is stored. Examples include the kernel entropy
-  pool, as well as userland buffers.
-* Fill Level: How full a Tank is.
-* Source: A Node where entropy is generated.
-* Examples include the kernel's own attempts at generating entropy, as well as
-  hardware TRNGs, haveged, etc.
-  This is abstracted as a Tank which is always full.
-* Connection: A bidirectional data path between two Nodes. Connections are
-  initialized, utilized and terminated, in that order. Connections carry all
-  explicit messages, including Fill Level Notifications and Entropy Transfers.
-* Peer: A Node connected to this Node.
 
-Peer relationships:
-* When two Nodes are connected to each other, they have a relationship as
-  Peers.
-* Each Node in a Peer relationship may choose whether or not it will send or
-  receive data from its Peer. This has a logical basis in that an HRNG cannot
-  receive data, and it has a security basis in that we may not trust the
-  quality of entropy from a Peer, even though we may wish to provide it with
-  entropy.
-* Peers may notify each other about their current entropy level. Such
-  notifications carry implicit flow control requests; if a Node notifies its
-  Peer that it's starving for entropy, it's implicitly requesting that its
-  Peer send it entropy.
+Node:
 
-Events:
-* Fill Level Notificaton: When a Node informs its Peer of its current Fill
-  Level.
-* Entropy Transfer Request: When a Node requests that its Peer send it
-  entropy. This event is detected by the receiving Node of a Fill Level
-  Notification, determined by comparing the receiver's Fill Level with the
-  that received.
-* Entropy Transfer: When one Node sends entropy to another Node.
+The base logical device in the network.
 
-Fill Levels:
+Tank:
+
+A Node where entropy is stored.
+
+(notes)
+Examples of Tanks include the Linux kernel's entropy pool, as well as userland
+buffers.
+
+Source:
+
+A Node where entropy is generated.
+
+Sources which cannot receive entropy (such as HRNGs) are abstracted as Tanks
+which are always full.
+
+(notes)
+Common examples of Sources include the Linux kernel's entropy pool, HRNGs and
+software sources.
+
+Message:
+
+A packet of information sent by one Node and received by another Node.
+
+Connection:
+
+A bidirectional data path between two Nodes.
+
+Connections are initialized, utilized and terminated, in that order.
+
+Messages sent over a Connection MUST arrive in the order they are sent.
+
+When a Message is sent over a Connection, it MUST NOT arrive more than once.
+
+All explicit messages pass over Connections.
+
+There MUST NOT be more than one Connection directly between any two Nodes.
+
+Peer:
+
+The Node on the other side of a Connection.
+
+Fill Level:
+
+The Fill Level of a Tank represents a quantity of entropy in the tank in
+proportion to the Tank's capacity.
+
+Fill Level Notification:
+
+A Fill Level Notification is a Message sent from one Tank (the sender) to
+another (the receiver), declaring to the receiver the sender's Fill Level.
+
+When a Tank's Fill Level changes, it MAY inform any Peer with which it has a
+connection.
+
+When a Tank establishes a Connection with a Peer, it MUST send a Fill Level
+Notification.
+
+How a Fill Level Notification is sent between Nodes is an implementation
+detail of the Connection between Nodes.
+
+The Fill Level communicated by Fill Level Notifications must, at minimum, be
+able to represent 'full' and 'empty' states.
+
+A Node SHOULD NOT transmit the same Fill Level consecutively via Fill Level
+Notifications on the same Connection.
+
+(notes)
+
+If there is no desire to receive entropy from a Peer, a valid tactic to avoid
+this would be to indicate a 'full' state on the Connection's mandatory initial
+Fill Level Notification--and never send another Fill Level Notification
+communicating otherwise.
+
+There are a variety of reasons for a Tank to not send Fill Level Notifications
+to its Peer. Among them are:
+
+* The erstwhile sender may not be capable of receiving entropy, and so any
+  entropy sent to it would be a waste. This would be the case of both HRNGs
+  and of Nodes whose purpose is purely to monitor the statuses of other Nodes.
+* The erstwhile sender may not trust the Peer as a valid source of entropy,
+  and so it does not desire entropy from that Peer--and would discard said
+  entropy if received.
+* The Peer relationship may be part of a larger network of Nodes, where
+  one-way entropy flow is desireable in this part of the network. This might
+  be the case if there is an asymmetric network connection (such as an ADSL
+  link) between two nodes, and it is more expensive for one node to push data
+  upstream than for the other to push data downstream.
+
+Ways of describing Fill Levels could include:
+* Percentages ( 23% )
+* Fractions  ( 123 / 456789 )
+* Discrete, relateable enumerated states ( GOOD > OK > LOW > CRITICAL )
+
+"Relateable" in "relateable enumerated states" simply means that you have a
+stable means of determining equality and whether one is greater than the
+other. I.e. "GOOD" is the same as "GOOD", but "GOOD" is greater than
+"CRITICAL".
+
+Entropy Transfer Requests:
+
+When two Tanks with an established Connection between them have their Fill
+Level differ by a Signifanct degree, and there is sufficient communication via
+Fill Level Notifications, an Entropy Transfer Request results.
 
 For two Connected Nodes, A and B, with each other as Peers:
 
 * If Node A's Fill Level is the same as Node B's Fill Level, then there is no
   Entropy Transfer Request.
 * If Node A's Fill Level is Significantly higher than Node B's Fill Level,
-  then Node B has implicitly sent an Entropy Transfer Request to Node A.
+  then there is an Entropy Transfer Request seeking the two to be normalized.
 * If Node B's Fill Level is Significantly higher than Node A's Fill Level,
-  then Node A has implicitly sent an Entropy Transfer Request to Node B.
+  then there is an Entropy Transfer Request seeking the two to be normalized.
 
-How a Fill Level Notification is sent between Nodes is an implementation
-detail of the Connection between Nodes. Example communication means include
-percentages, fractions and enumerated states (i.e. GOOD, OK, LOW, CRITICAL).
+Entropy Transfer Requests are virtual in nature, meaning they are not sent
+explicitly.
 
-It is an error for a Node to transmit the same Fill Level Notification
-consecutively on the same Connection. If Node A knows Node B is at Fill Level
-S, then if Node A receives a Fill Level Notification from B indicating B is at
-Fill Level S, then A has clearly received a duplicate notification, and the
-connection should be terminated.
+Entropy Transfer Requests are detected by the Node receiving a Fill Level
+Notification.
+
+Entropy Transfer Requests are detected by comparing the Fill Level indicated
+in the received Fill Level Notification with the Fill Level of the receiving
+Tank.
+
+Entropy Transfer Requests are considered to accompany Fill Level
+Notifications.
+
+Entropy Transfer Requests are considered as having been sent by the Node
+which sent the triggering Fill Level Notification.
+
+Entropy Transfer Requests can only be terminated by the detecting Node's
+determining that the two Node's Fill Levels are no longer Significantly
+different.
+
+(notes)
+
+It is possible for Node A to 'send' an Entropy Transfer Request to Node B
+without knowing that Node B's Fill Level is Significantly greater than it's
+own, since there may be a delay in communications where Node A and Node B each
+have Fill Level Notifications in transit to each other. This results in a
+systemic race condition, and means that the sender of a Fill Level
+Notification cannot assume it will trigger an Entropy Transfer or Entropy
+Transfer Request; the receiver (Node B) of the Fill Level Notification (FLN
+A->B) may have been fully drained of entropy before the receiver's (Node B's)
+own Fill Level Notification (FLN B->A) reached the sender (Node A).
+
+Entropy Message:
+
+A volume of Entropy sent across a Connection.
 
 Entropy Transfers:
 
-When an Entropy Transfer occurs, one Tank removes entropy from itself and
-sends it across its Connection to another Tank, which MAY add that entropy to
-itself. The sending Tank SHOULD continue sending entropy until there is no
-longer an outstanding Entropy Transfer Request. The sending Tank MUST
-NOT send the same entropy more than once to the same Node, and the sending Tank
-MUST NOT send the same entropy to more than one Node. It is recognized and
-accepted that entropy may be lost, discarded or wasted as a consequence.
-
-Entropy Transfer Requests:
-
-Entropy Transfer Requests are virtual in nature, meaning they are not sent
-explicitly. Instead, they are detected by the Node receiving the Fill Level
-Notification by comparing the announced Fill Level with the receiving Node's
-own Fill Level, and determining if they are Significantly different. This
-determination is implementation-defined. Entropy Transfer Requests can only be
-terminated by the this same Node's determining that the two Node's Fill Levels
-are no longer Significantly different.
+When an Entropy Transfer occurs, one Tank sends entropy from itself across its
+Connection to another Tank.
 
 A Node which receives an Entropy Transfer Request SHOULD initiate an Entropy
 Transfer in response.
+
+The sending Tank MUST remove that entropy from itself.
+
+The sending Tank SHOULD continue sending entropy until there is no longer an
+outstanding Entropy Transfer Request.
+
+The sending Tank MUST NOT send the same entropy more than once to the same
+Node.
+
+The sending Tank MUST NOT send the same entropy to more than one
+Node.
+
+The receiving Tank SHOULD add that entropy to itself unless it is full.
+
+(Notes)
+
+If a Tank sends Fill Level Notifications to a Peer, but does not add entropy
+received from resulting Entropy Transfer Requests, it risks triggering a
+perpetual drain on the sending Tank's Fill Level as well as an undesirable
+drain on resources consumed in generating and communicating the discarded
+entropy. It is for this reason that a receiving Tank SHOULD add such entropy
+to itself. If a Tank wishes not to be the recipient of Entropy Transfers, it
+still has the option not to send Fill Level Notifications. This would be an
+appropriate configuration for a Tank-abstracted HRNG, for example. 
 
 Examples:
 
